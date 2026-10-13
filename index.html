@@ -52,6 +52,9 @@
   .progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 8px 0 4px; }
   .progress div { height: 100%; background: var(--accent); }
   .hidden { display: none; }
+  /* 亡くなった日の入力をうながす欄 */
+  .date-banner { border: 2px solid var(--soon); background: #fdf6ea; }
+  .date-banner input { margin-top: 8px; }
   /* 入口 */
   .entry {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
@@ -154,7 +157,7 @@
     <div class="card">
       <strong>亡くなった日</strong>
       <input type="date" id="deathDate">
-      <p class="meta">枠をタップすると、カレンダーから日付を選べます。</p>
+      <p class="meta">枠をタップすると、カレンダーから日付を選べます。まだの場合は、空欄のままで進めます（後から入力できます）。</p>
     </div>
     <div class="card">
       <strong>当てはまるものにチェックしてください</strong>
@@ -179,6 +182,12 @@
     </div>
 
     <div id="tabTasks">
+      <!-- 亡くなった日が未入力のときだけ表示する入力欄 -->
+      <div id="dateBanner" class="card date-banner hidden">
+        <strong>亡くなった日を入れると、期限の日付が表示されます</strong>
+        <input type="date" id="bannerDate">
+        <p class="meta">亡くなってすぐの場合は、14日以内の手続きがあります。先に日付を入れてください。</p>
+      </div>
       <div id="groups"></div>
       <button class="sub" id="editBtn">設定をやり直す</button>
       <p class="meta" id="dueNote">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
@@ -359,17 +368,29 @@ function save(state) {
 }
 let state = load() || { deathDate: "", answers: {}, done: {} };
 if (!state.records) state.records = [];   // 前の版で保存したデータにも記録帳を用意する
+if (state.deathDate) state.setupDone = true;            // 前の版で日付を入れた人は設定済み扱い
 if (!state.tab && state.deathDate) state.tab = "after";   // 前の版で使っていた人は「亡くなった後」から再開
 
 // ===== 日付の計算 =====
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
 function addMonths(date, n) { const d = new Date(date); d.setMonth(d.getMonth() + n); return d; }
 function dueDate(item) {
-  if (!item.due) return null;
+  if (!item.due || !state.deathDate) return null;   // 日付が未入力なら日付は計算しない
   const base = new Date(state.deathDate + "T00:00:00");
   if (item.due.type === "days") return addDays(base, item.due.n);
   if (item.due.type === "months") return addMonths(base, item.due.n);
   return null;
+}
+// 日付が未入力のときの並び順と表示（死亡日から何日・何か月）
+function dueKey(item) {
+  if (item.due.type === "days") return item.due.n;
+  if (item.due.type === "months") return item.due.n * 30.5;
+  return Infinity;
+}
+function relativeText(item) {
+  if (item.due.type === "days") return `死亡日から${item.due.n}日以内`;
+  const n = item.due.n;
+  return `死亡日から${n % 12 === 0 ? n / 12 + "年" : n + "か月"}以内`;
 }
 function fmt(d) { return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; }
 function daysLeft(d) {
@@ -458,6 +479,7 @@ function itemHTML(item) {
     const leftText = left < 0 ? `${-left}日過ぎています` : `あと${left}日`;
     dueText = `<span class="${cls}">${fmt(d)}まで（${leftText}）</span>`;
   } else if (!item.due) dueText = "";
+  else if (item.due.type === "days" || item.due.type === "months") dueText = relativeText(item);
   else if (item.due.type === "asap") dueText = "速やかに";
   else if (item.due.type === "label") dueText = item.due.text;
   else dueText = "期限なし";
@@ -484,7 +506,7 @@ function renderList() {
   const items = ITEMS.filter(i => matches(i.cond));
 
   // 3つのグループに分ける
-  const dated = items.filter(i => dueDate(i)).sort((a, b) => dueDate(a) - dueDate(b));
+  const dated = items.filter(i => i.due.type === "days" || i.due.type === "months").sort((a, b) => dueKey(a) - dueKey(b));
   const asap = items.filter(i => i.due.type === "asap");
   const later = items.filter(i => i.due.type === "label" || i.due.type === "none");
 
@@ -499,7 +521,8 @@ function renderList() {
   // 進み具合
   const doneCount = items.filter(i => state.done[i.id]).length;
   document.getElementById("summary").innerHTML =
-    `亡くなった日：${fmt(new Date(state.deathDate + "T00:00:00"))}<br>完了 ${doneCount} / ${items.length} 件`;
+    `亡くなった日：${state.deathDate ? fmt(new Date(state.deathDate + "T00:00:00")) : "未入力"}<br>完了 ${doneCount} / ${items.length} 件`;
+  document.getElementById("dateBanner").classList.toggle("hidden", !!state.deathDate);
   document.getElementById("bar").style.width = `${items.length ? doneCount / items.length * 100 : 0}%`;
 }
 
@@ -576,7 +599,7 @@ function buildPrint() {
 // タブの切り替え（before=生前の準備 / after=亡くなった後 / records=記録帳）
 function switchTab(tab) {
   // 亡くなった日がまだなければ、先に設定画面へ
-  if (tab === "after" && !state.deathDate) { show("setup"); return; }
+  if (tab === "after" && !state.setupDone) { show("setup"); return; }
   state.tab = tab;
   state.started = true;
   save(state);
@@ -585,6 +608,7 @@ function switchTab(tab) {
   document.getElementById("tabRecords").classList.toggle("hidden", tab !== "records");
   document.getElementById("editBtn").classList.toggle("hidden", tab !== "after");
   document.getElementById("dueNote").classList.toggle("hidden", tab !== "after");
+  if (tab !== "after") document.getElementById("dateBanner").classList.add("hidden");
   if (tab === "before") renderBefore();
   else if (tab === "after") renderList();
   else {
@@ -607,8 +631,8 @@ function show(screen) {
 // ===== ボタンやチェックの操作 =====
 document.getElementById("startBtn").addEventListener("click", () => {
   const date = document.getElementById("deathDate").value;
-  if (!date) { alert("亡くなった日を入力してください"); return; }
-  state.deathDate = date;
+  state.deathDate = date;   // 空欄でも進める
+  state.setupDone = true;
   state.tab = "after";
   state.answers = {};
   document.querySelectorAll("#questions input[type=checkbox]").forEach(cb => { state.answers[cb.dataset.key] = cb.checked; });
@@ -629,11 +653,19 @@ document.getElementById("home").addEventListener("click", e => {
 });
 // 設定画面の「戻る」：まだリストを使っていなければ入口へ、使っていれば生前の準備へ
 document.getElementById("setupHomeBtn").addEventListener("click", () => {
-  if (state.deathDate) { show("list"); return; }
+  if (state.setupDone) { show("list"); return; }
   if (state.started) { state.tab = "before"; show("list"); } else show("home");
 });
 
 document.getElementById("questions").addEventListener("change", updateCounts);
+
+// 未入力の欄から亡くなった日を入れたら、すぐ期限を表示する
+document.getElementById("bannerDate").addEventListener("change", e => {
+  if (!e.target.value) return;
+  state.deathDate = e.target.value;
+  save(state);
+  switchTab("after");
+});
 
 // ----- 記録帳の操作 -----
 document.getElementById("recType").innerHTML = RECORD_TYPES.map(t => `<option>${t}</option>`).join("");
