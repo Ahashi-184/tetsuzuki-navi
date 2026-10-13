@@ -5,6 +5,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>手続きナビ</title>
+<!-- アプリ化（ホーム画面に追加）の設定 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4a6b5d">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="手続きナビ">
 <style>
   /* ===== 見た目の設定（色・文字サイズ） ===== */
   :root {
@@ -413,6 +419,11 @@ document.getElementById("groups").addEventListener("change", e => {
   save(state);
   renderList();
 });
+
+// ===== アプリ化：電波がなくても開けるようにする =====
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => { /* 対応していない環境では何もしない */ });
+}
 
 // ===== 起動時：設定済みならリストから表示 =====
 show(state.deathDate ? "list" : "setup");

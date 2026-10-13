@@ -1,0 +1,15 @@
+{
+  "name": "手続きナビ",
+  "short_name": "手続きナビ",
+  "description": "ご家族が亡くなった後の手続きを、期限の近い順に表示します。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f5f2",
+  "theme_color": "#4a6b5d",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
