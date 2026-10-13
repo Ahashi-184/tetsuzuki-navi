@@ -74,6 +74,8 @@
     display: block; width: 100%; margin-top: 4px; font-size: 17px; font-family: inherit;
     padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text);
   }
+  .out-btns { display: flex; gap: 8px; }
+  .out-btns button { flex: 1; padding: 12px 6px; font-size: 16px; }
   .rec-type { display: inline-block; font-size: 13px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
   .rec-name { font-weight: bold; }
   .rec-memo { font-size: 15px; color: var(--text); white-space: pre-wrap; margin-top: 2px; }
@@ -211,7 +213,13 @@
         <button type="button" class="sub hidden" id="recCancel">編集をやめる</button>
       </div>
       <div id="recList"></div>
+      <div class="out-btns">
+        <button type="button" id="copyBtn">文章でコピー</button>
+        <button type="button" id="imageBtn">画像で保存・送る</button>
+      </div>
+      <button type="button" id="shareBtn" class="sub hidden">記録帳を送る（LINE・メール・メモ）</button>
       <button type="button" class="sub" id="printBtn">記録帳を印刷する</button>
+      <p class="warn-box hidden" id="printHelp">ホーム画面から開いたアプリでは、iPhoneの仕組み上、印刷ができません。「画像で保存・送る」で写真に保存すると、写真アプリから印刷できます。</p>
       <p class="meta">記録はこの端末の中だけに保存されます。家族と共有するときは、印刷するか、印刷画面から PDF にして送ってください。</p>
     </div>
   </section>
@@ -723,9 +731,137 @@ document.getElementById("recList").addEventListener("change", e => {
   renderRecords();
 });
 
+// ホーム画面から開いたアプリかどうか（iPhoneではこの状態だと印刷できない）
+function isStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
 document.getElementById("printBtn").addEventListener("click", () => {
+  if (isStandalone() && /iPhone|iPad/.test(navigator.userAgent)) {
+    document.getElementById("printHelp").classList.remove("hidden");
+    return;
+  }
   buildPrint();
   window.print();
+});
+
+// 記録帳を文章にする（LINE・メール・メモに送る用）
+function recordsText() {
+  const lines = ["【記録帳】判明した資産・契約"];
+  if (state.deathDate) lines.push(`亡くなった日：${fmt(new Date(state.deathDate + "T00:00:00"))}`);
+  lines.push(`作成日：${fmt(new Date())}`, "");
+  RECORD_TYPES.forEach(type => {
+    const list = state.records.filter(r => r.type === type);
+    if (!list.length) return;
+    lines.push(`■ ${type}`);
+    list.forEach(r => {
+      lines.push(`・${r.name}（${r.status}）`);
+      if (r.memo) lines.push(`　${r.memo.replace(/\n/g, "\n　")}`);
+    });
+    lines.push("");
+  });
+  lines.push("※家族の整理用のメモです。口座番号・パスワードは記載していません。");
+  return lines.join("\n");
+}
+
+// ----- 文章でコピー -----
+document.getElementById("copyBtn").addEventListener("click", async e => {
+  if (!state.records.length) { alert("まだ記録がありません"); return; }
+  const btn = e.target, text = recordsText();
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (err) {
+    // 古い端末向け：見えない入力欄を使ってコピーする
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+  }
+  btn.textContent = "コピーしました";
+  setTimeout(() => { btn.textContent = "文章でコピー"; }, 2000);
+});
+
+// ----- 画像で保存・送る（印刷と同じ表を画像にする） -----
+function recordsImage() {
+  const W = 1080, P = 48, FS = 28, LH = 42;
+  const cols = [{ t: "種類", w: 200 }, { t: "名称", w: 300 }, { t: "メモ", w: 0 }, { t: "状態", w: 120 }];
+  cols[2].w = W - P * 2 - cols[0].w - cols[1].w - cols[3].w;
+  const font = (size, bold) => `${bold ? "bold " : ""}${size}px "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif`;
+  const c = document.createElement("canvas"), ctx = c.getContext("2d");
+
+  // 文字を枠の幅で折り返す
+  function wrap(text, width) {
+    ctx.font = font(FS);
+    const out = [];
+    String(text || "").split("\n").forEach(para => {
+      let line = "";
+      for (const ch of para) {
+        if (ctx.measureText(line + ch).width > width && line) { out.push(line); line = ch; }
+        else line += ch;
+      }
+      out.push(line);
+    });
+    return out;
+  }
+
+  const records = RECORD_TYPES.flatMap(type => state.records.filter(r => r.type === type));
+  const rows = records.map(r => {
+    const cells = [r.type, r.name, r.memo, r.status].map((t, i) => wrap(t, cols[i].w - 24));
+    return { cells, h: Math.max(...cells.map(x => x.length)) * LH + 20 };
+  });
+  const headH = LH + 20, top = P + 64 + 48 + 24;
+  const H = top + headH + rows.reduce((a, r) => a + r.h, 0) + 100;
+  c.width = W; c.height = H;
+
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#2b2b2b"; ctx.textBaseline = "top";
+  ctx.font = font(44, true); ctx.fillText("記録帳（判明した資産・契約）", P, P);
+  ctx.font = font(26);
+  const sub = (state.deathDate ? `亡くなった日：${fmt(new Date(state.deathDate + "T00:00:00"))}　／　` : "") + `作成日：${fmt(new Date())}`;
+  ctx.fillText(sub, P, P + 64);
+
+  // 表を描く
+  let y = top;
+  const drawRow = (cells, h, head) => {
+    let x = P;
+    cells.forEach((lines, i) => {
+      ctx.fillStyle = head ? "#eeeeee" : "#ffffff"; ctx.fillRect(x, y, cols[i].w, h);
+      ctx.strokeStyle = "#999"; ctx.lineWidth = 2; ctx.strokeRect(x, y, cols[i].w, h);
+      ctx.fillStyle = "#2b2b2b"; ctx.font = font(FS, head);
+      lines.forEach((ln, k) => ctx.fillText(ln, x + 12, y + 10 + k * LH));
+      x += cols[i].w;
+    });
+    y += h;
+  };
+  drawRow(cols.map(col => [col.t]), headH, true);
+  rows.forEach(r => drawRow(r.cells, r.h, false));
+
+  ctx.fillStyle = "#666"; ctx.font = font(22);
+  ctx.fillText("家族の整理用のメモです。口座番号・パスワードは記載していません。", P, y + 30);
+  return c;
+}
+
+document.getElementById("imageBtn").addEventListener("click", () => {
+  if (!state.records.length) { alert("まだ記録がありません"); return; }
+  recordsImage().toBlob(async blob => {
+    const file = new File([blob], "kirokucho.png", { type: "image/png" });
+    // 共有メニューで送れる端末（iPhoneなど）は共有メニューを開く
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: "記録帳" }); } catch (e) { /* 閉じた場合は何もしない */ }
+      return;
+    }
+    // パソコンなどは画像ファイルとして保存する
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "kirokucho.png"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, "image/png");
+});
+
+// 共有メニューが使える端末だけ「送る」ボタンを出す
+if (navigator.share) document.getElementById("shareBtn").classList.remove("hidden");
+
+document.getElementById("shareBtn").addEventListener("click", () => {
+  if (!state.records.length) { alert("まだ記録がありません"); return; }
+  navigator.share({ title: "記録帳", text: recordsText() }).catch(() => { /* 送らずに閉じた場合は何もしない */ });
 });
 window.addEventListener("beforeprint", buildPrint);   // ブラウザのメニューから印刷した場合にも対応
 
