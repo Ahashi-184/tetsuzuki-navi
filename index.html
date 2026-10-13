@@ -52,9 +52,17 @@
   .progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 8px 0 4px; }
   .progress div { height: 100%; background: var(--accent); }
   .hidden { display: none; }
+  /* 入口 */
+  .entry {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
+    background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 16px; margin: 0 0 12px;
+  }
+  .entry-title { font-size: 19px; font-weight: bold; color: var(--accent); }
+  .entry-desc { font-size: 15px; color: var(--sub); }
   /* タブ */
   .tabs { display: flex; gap: 0; margin: 4px 0 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
-  .tab { flex: 1; margin: 0; border-radius: 0; background: transparent; color: var(--sub); padding: 10px 8px; }
+  .tab { flex: 1; margin: 0; border-radius: 0; background: transparent; color: var(--sub); padding: 10px 2px; font-size: 15px; white-space: nowrap; }
   .tab.on { background: var(--accent); color: #fff; font-weight: bold; }
   /* 記録帳 */
   .warn-box { background: #fbeee9; color: var(--warn); border-radius: 8px; padding: 6px 10px; font-size: 15px; margin: 8px 0; }
@@ -122,7 +130,19 @@
 <body>
 <main>
   <h1>手続きナビ</h1>
-  <p class="lead">ご家族が亡くなった後の手続きを、期限の近い順に表示します。</p>
+  <p class="lead">もしもの時の準備から、亡くなった後の手続きまでを案内します。</p>
+
+  <!-- ===== 画面0：入口（どちらを使うか選ぶ） ===== -->
+  <section id="home" class="hidden">
+    <button type="button" class="entry" data-mode="before">
+      <span class="entry-title">もしもに備えて準備する</span>
+      <span class="entry-desc">ご家族が元気なうちや、入院・介護が始まったときに確認しておくこと</span>
+    </button>
+    <button type="button" class="entry" data-mode="after">
+      <span class="entry-title">亡くなった後の手続きをする</span>
+      <span class="entry-desc">亡くなった日から、やるべき手続きを期限の近い順に表示します</span>
+    </button>
+  </section>
 
   <!-- ===== 画面1：初期設定 ===== -->
   <section id="setup">
@@ -142,24 +162,26 @@
       <div id="questions"></div>
     </div>
     <button id="startBtn">手続きリストを作る</button>
+    <button type="button" class="sub" id="setupHomeBtn">戻る</button>
   </section>
 
   <!-- ===== 画面2：手続きリスト ===== -->
   <section id="list" class="hidden">
+    <!-- 生前の準備・亡くなった後・記録帳の切り替え -->
+    <div class="tabs">
+      <button type="button" class="tab" data-tab="before">生前の準備</button>
+      <button type="button" class="tab" data-tab="after">亡くなった後</button>
+      <button type="button" class="tab" data-tab="records">記録帳</button>
+    </div>
     <div class="card">
       <div id="summary"></div>
       <div class="progress"><div id="bar"></div></div>
-    </div>
-    <!-- 手続きリストと記録帳の切り替え -->
-    <div class="tabs">
-      <button type="button" class="tab on" data-tab="tasks">手続きリスト</button>
-      <button type="button" class="tab" data-tab="records">記録帳</button>
     </div>
 
     <div id="tabTasks">
       <div id="groups"></div>
       <button class="sub" id="editBtn">設定をやり直す</button>
-      <p class="meta">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
+      <p class="meta" id="dueNote">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
     </div>
 
     <!-- ===== 記録帳 ===== -->
@@ -307,6 +329,26 @@ const ITEMS = [
   { id:"g10", name:"ブログ・ドメイン・有料クラウドの契約", due:{type:"label", text:"更新日まで"}, cond:"web", place:"各サービス", reason:"自動更新で課金が続き、期限が切れるとデータが消える" },
 ];
 
+// ===== 事前の準備（もしもに備える）：timing ごとにまとめて表示 =====
+const BEFORE_GROUPS = [
+  { id: "well",     title: "元気なうちに" },
+  { id: "care",     title: "入院・介護が始まったら" },
+  { id: "terminal", title: "入院・余命宣告を受けたら" },
+];
+const BEFORE_ITEMS = [
+  { id:"b1",  timing:"well",     name:"スマホのロック解除方法の確認", place:"本人", reason:"亡くなった後は解除できず、中の情報の手がかりが失われる" },
+  { id:"b2",  timing:"well",     name:"取引のある金融機関・証券会社・保険の把握", place:"本人", reason:"通帳のないネット口座は、家族が存在に気づけない" },
+  { id:"b3",  timing:"well",     name:"契約中のサブスク・ネットサービスの把握", place:"本人", reason:"亡くなった後も課金が続き、解約先も分からなくなる" },
+  { id:"b4",  timing:"well",     name:"遺言書の有無と保管場所", place:"本人", reason:"見つからないまま遺産を分けると、やり直しになる" },
+  { id:"b5",  timing:"well",     name:"葬儀の希望（形式・宗派・菩提寺）", place:"本人", reason:"菩提寺に無断で葬儀をすると、納骨を断られることがある。親族間で揉める原因にもなりやすい" },
+  { id:"b6",  timing:"well",     name:"不動産の所在・名義の把握", place:"本人（権利証・固定資産税の通知書）", reason:"遠方や共有名義の不動産は、家族が把握していないことが多い" },
+  { id:"b7",  timing:"well",     name:"借金・保証人の有無", place:"本人（借入先・ローン・保証契約）", reason:"相続放棄の期限は3か月。把握が遅れると判断できない" },
+  { id:"b8",  timing:"care",     name:"医療・介護先の状況把握", place:"家族（病院・ケアマネジャー・施設）", reason:"入院費・施設費の精算や高額療養費の請求に必要" },
+  { id:"b9",  timing:"terminal", name:"訃報を知らせる人のリスト", place:"本人・家族", reason:"亡くなった後すぐに連絡が必要で、探す余裕がない" },
+  { id:"b10", timing:"terminal", name:"葬儀社の事前相談・見積もり", place:"葬儀社", reason:"葬儀社を急いで決めると、費用が膨らむ可能性がある" },
+  { id:"b11", timing:"terminal", name:"遺影用の写真の選定", place:"家族" },
+];
+
 // ===== 保存と読み込み（この端末のブラウザ内だけに保存） =====
 const STORE_KEY = "tetsuzuki-navi-v1";
 function load() {
@@ -317,11 +359,13 @@ function save(state) {
 }
 let state = load() || { deathDate: "", answers: {}, done: {} };
 if (!state.records) state.records = [];   // 前の版で保存したデータにも記録帳を用意する
+if (!state.tab && state.deathDate) state.tab = "after";   // 前の版で使っていた人は「亡くなった後」から再開
 
 // ===== 日付の計算 =====
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
 function addMonths(date, n) { const d = new Date(date); d.setMonth(d.getMonth() + n); return d; }
 function dueDate(item) {
+  if (!item.due) return null;
   const base = new Date(state.deathDate + "T00:00:00");
   if (item.due.type === "days") return addDays(base, item.due.n);
   if (item.due.type === "months") return addMonths(base, item.due.n);
@@ -413,7 +457,8 @@ function itemHTML(item) {
     const cls = left < 0 ? "due-warn" : left <= 7 ? "due-soon" : "";
     const leftText = left < 0 ? `${-left}日過ぎています` : `あと${left}日`;
     dueText = `<span class="${cls}">${fmt(d)}まで（${leftText}）</span>`;
-  } else if (item.due.type === "asap") dueText = "速やかに";
+  } else if (!item.due) dueText = "";
+  else if (item.due.type === "asap") dueText = "速やかに";
   else if (item.due.type === "label") dueText = item.due.text;
   else dueText = "期限なし";
 
@@ -428,7 +473,7 @@ function itemHTML(item) {
       <input type="checkbox" data-id="${item.id}" ${state.done[item.id] ? "checked" : ""}>
       <div class="body">
         <div class="name">${item.name}</div>
-        <div class="meta">${dueText}・${item.place}</div>
+        <div class="meta">${dueText ? dueText + "・" : ""}${item.place}</div>
         ${extra}
       </div>
     </div>`;
@@ -458,6 +503,16 @@ function renderList() {
   document.getElementById("bar").style.width = `${items.length ? doneCount / items.length * 100 : 0}%`;
 }
 
+// ===== 事前の準備リストを表示 =====
+function renderBefore() {
+  document.getElementById("groups").innerHTML = BEFORE_GROUPS.map(g =>
+    `<h2>${g.title}</h2>` + BEFORE_ITEMS.filter(i => i.timing === g.id).map(itemHTML).join("")
+  ).join("") + `<p class="meta">口座の凍結に備えて、生前に預金をまとめて引き出すことは、相続で揉める原因になるためおすすめしません。亡くなった後も、遺産分割の前に一定額まで払い戻しを受けられる制度があります。</p>`;
+  const doneCount = BEFORE_ITEMS.filter(i => state.done[i.id]).length;
+  document.getElementById("summary").innerHTML = `もしもに備える準備<br>完了 ${doneCount} / ${BEFORE_ITEMS.length} 件`;
+  document.getElementById("bar").style.width = `${doneCount / BEFORE_ITEMS.length * 100}%`;
+}
+
 // ===== 記録帳 =====
 const RECORD_TYPES = ["預貯金", "証券・投資", "保険", "年金", "不動産", "車", "借入・ローン・保証", "クレジットカード", "サブスク・定期購入", "スマホ・ネット", "その他"];
 const RECORD_STATUS = ["未対応", "対応中", "完了"];
@@ -470,6 +525,11 @@ function esc(t) {
 
 function renderRecords() {
   const list = state.records;
+  if (state.tab === "records") {
+    const n = list.length, done = list.filter(r => r.status === "完了").length;
+    document.getElementById("summary").innerHTML = `記録帳<br>記録 ${n} 件（完了 ${done} 件）`;
+    document.getElementById("bar").style.width = `${n ? done / n * 100 : 0}%`;
+  }
   document.getElementById("recList").innerHTML = list.length === 0
     ? `<div class="card rec-empty">まだ記録はありません。<br>通帳・郵便物・スマホなどで見つけたものを書き留めていきましょう。</div>`
     : RECORD_TYPES.flatMap(type => list.filter(r => r.type === type)).map(r => `
@@ -513,17 +573,34 @@ function buildPrint() {
     <p class="foot">家族の整理用のメモです。口座番号・パスワードは記載していません。期限や手続きの判断は、役所や専門家にご確認ください。</p>`;
 }
 
+// タブの切り替え（before=生前の準備 / after=亡くなった後 / records=記録帳）
 function switchTab(tab) {
+  // 亡くなった日がまだなければ、先に設定画面へ
+  if (tab === "after" && !state.deathDate) { show("setup"); return; }
+  state.tab = tab;
+  state.started = true;
+  save(state);
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
-  document.getElementById("tabTasks").classList.toggle("hidden", tab !== "tasks");
+  document.getElementById("tabTasks").classList.toggle("hidden", tab === "records");
   document.getElementById("tabRecords").classList.toggle("hidden", tab !== "records");
-  if (tab === "records") renderRecords();
+  document.getElementById("editBtn").classList.toggle("hidden", tab !== "after");
+  document.getElementById("dueNote").classList.toggle("hidden", tab !== "after");
+  if (tab === "before") renderBefore();
+  else if (tab === "after") renderList();
+  else {
+    renderRecords();
+    const n = state.records.length, done = state.records.filter(r => r.status === "完了").length;
+    document.getElementById("summary").innerHTML = `記録帳<br>記録 ${n} 件（完了 ${done} 件）`;
+    document.getElementById("bar").style.width = `${n ? done / n * 100 : 0}%`;
+  }
 }
 
 function show(screen) {
+  document.getElementById("home").classList.toggle("hidden", screen !== "home");
   document.getElementById("setup").classList.toggle("hidden", screen !== "setup");
   document.getElementById("list").classList.toggle("hidden", screen !== "list");
-  if (screen === "list") renderList(); else renderSetup();
+  if (screen === "list") switchTab(state.tab || "before");
+  else if (screen === "setup") renderSetup();
   window.scrollTo(0, 0);
 }
 
@@ -532,6 +609,7 @@ document.getElementById("startBtn").addEventListener("click", () => {
   const date = document.getElementById("deathDate").value;
   if (!date) { alert("亡くなった日を入力してください"); return; }
   state.deathDate = date;
+  state.tab = "after";
   state.answers = {};
   document.querySelectorAll("#questions input[type=checkbox]").forEach(cb => { state.answers[cb.dataset.key] = cb.checked; });
   document.querySelectorAll("#questions input[type=radio]:checked").forEach(r => { state.answers[r.name] = r.value; });
@@ -540,6 +618,20 @@ document.getElementById("startBtn").addEventListener("click", () => {
 });
 
 document.getElementById("editBtn").addEventListener("click", () => show("setup"));
+
+// 入口の選択
+document.getElementById("home").addEventListener("click", e => {
+  const btn = e.target.closest(".entry");
+  if (!btn) return;
+  state.tab = btn.dataset.mode;
+  save(state);
+  show("list");   // 「亡くなった後」で日付がなければ、自動で設定画面になる
+});
+// 設定画面の「戻る」：まだリストを使っていなければ入口へ、使っていれば生前の準備へ
+document.getElementById("setupHomeBtn").addEventListener("click", () => {
+  if (state.deathDate) { show("list"); return; }
+  if (state.started) { state.tab = "before"; show("list"); } else show("home");
+});
 
 document.getElementById("questions").addEventListener("change", updateCounts);
 
@@ -609,7 +701,7 @@ document.getElementById("groups").addEventListener("change", e => {
   if (!e.target.dataset.id) return;
   state.done[e.target.dataset.id] = e.target.checked;
   save(state);
-  renderList();
+  switchTab(state.tab);
 });
 
 // ===== アプリ化：電波がなくても開けるようにする =====
@@ -617,8 +709,9 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => { /* 対応していない環境では何もしない */ });
 }
 
-// ===== 起動時：設定済みならリストから表示 =====
-show(state.deathDate ? "list" : "setup");
+// ===== 起動時：入口 → 設定 → リストの順に、続きの画面から表示 =====
+if (!state.tab) show("home");   // 初回だけ入口を表示
+else show("list");
 </script>
 </body>
 </html>
