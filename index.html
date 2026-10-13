@@ -52,6 +52,39 @@
   .progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 8px 0 4px; }
   .progress div { height: 100%; background: var(--accent); }
   .hidden { display: none; }
+  /* タブ */
+  .tabs { display: flex; gap: 0; margin: 4px 0 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .tab { flex: 1; margin: 0; border-radius: 0; background: transparent; color: var(--sub); padding: 10px 8px; }
+  .tab.on { background: var(--accent); color: #fff; font-weight: bold; }
+  /* 記録帳 */
+  .warn-box { background: #fbeee9; color: var(--warn); border-radius: 8px; padding: 6px 10px; font-size: 15px; margin: 8px 0; }
+  label.field { display: block; margin-top: 12px; font-size: 15px; color: var(--sub); }
+  label.field input, label.field select, label.field textarea {
+    display: block; width: 100%; margin-top: 4px; font-size: 17px; font-family: inherit;
+    padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text);
+  }
+  .rec-type { display: inline-block; font-size: 13px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
+  .rec-name { font-weight: bold; }
+  .rec-memo { font-size: 15px; color: var(--text); white-space: pre-wrap; margin-top: 2px; }
+  .rec-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .rec-actions select { font-size: 15px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .btn-s { width: auto; margin: 0; padding: 6px 12px; font-size: 15px; background: transparent; color: var(--sub); border: 1px solid var(--line); }
+  .btn-s.danger { color: var(--warn); }
+  .rec-empty { text-align: center; color: var(--sub); font-size: 15px; padding: 16px; }
+  .status-done .rec-name { text-decoration: line-through; color: var(--sub); }
+  #printArea { display: none; }
+  /* 印刷時：印刷用の部分だけを表示する */
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    main > *:not(#printArea) { display: none !important; }
+    #printArea { display: block; }
+    #printArea h1 { font-size: 18pt; margin: 0 0 4pt; }
+    #printArea table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+    #printArea th, #printArea td { border: 1px solid #999; padding: 5pt 6pt; vertical-align: top; text-align: left; }
+    #printArea th { background: #eee; }
+    #printArea .blank td { height: 22pt; }
+    #printArea .foot { font-size: 9pt; color: #555; margin-top: 8pt; }
+  }
   /* 上部に追従する選択状況 */
   .sticky-bar {
     position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
@@ -89,7 +122,7 @@
 <body>
 <main>
   <h1>手続きナビ</h1>
-  <p class="lead">ご家族が亡くなる前の準備から、亡くなった後の手続きを、期限の近い順に表示します。</p>
+  <p class="lead">ご家族が亡くなった後の手続きを、期限の近い順に表示します。</p>
 
   <!-- ===== 画面1：初期設定 ===== -->
   <section id="setup">
@@ -101,7 +134,7 @@
     <div class="card">
       <strong>亡くなった日</strong>
       <input type="date" id="deathDate">
-    　<p class="meta">枠をタップすると、カレンダーから日付を選べます。</p>
+      <p class="meta">枠をタップすると、カレンダーから日付を選べます。</p>
     </div>
     <div class="card">
       <strong>当てはまるものにチェックしてください</strong>
@@ -117,10 +150,43 @@
       <div id="summary"></div>
       <div class="progress"><div id="bar"></div></div>
     </div>
-    <div id="groups"></div>
-    <button class="sub" id="editBtn">設定をやり直す</button>
-    <p class="meta">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
+    <!-- 手続きリストと記録帳の切り替え -->
+    <div class="tabs">
+      <button type="button" class="tab on" data-tab="tasks">手続きリスト</button>
+      <button type="button" class="tab" data-tab="records">記録帳</button>
+    </div>
+
+    <div id="tabTasks">
+      <div id="groups"></div>
+      <button class="sub" id="editBtn">設定をやり直す</button>
+      <p class="meta">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
+    </div>
+
+    <!-- ===== 記録帳 ===== -->
+    <div id="tabRecords" class="hidden">
+      <div class="card">
+        <strong id="recFormTitle">見つかったものを書き留める</strong>
+        <p class="warn-box">口座番号・パスワード・暗証番号は書かないでください。</p>
+        <label class="field">種類
+          <select id="recType"></select>
+        </label>
+        <label class="field">名称
+          <input type="text" id="recName" placeholder="例：〇〇銀行 船橋支店">
+        </label>
+        <label class="field">メモ
+          <textarea id="recMemo" rows="3" placeholder="例：通帳は仏壇の引き出し。問い合わせ先は通帳の裏に記載"></textarea>
+        </label>
+        <button type="button" id="recSave">記録帳に追加する</button>
+        <button type="button" class="sub hidden" id="recCancel">編集をやめる</button>
+      </div>
+      <div id="recList"></div>
+      <button type="button" class="sub" id="printBtn">記録帳を印刷する</button>
+      <p class="meta">記録はこの端末の中だけに保存されます。家族と共有するときは、印刷するか、印刷画面から PDF にして送ってください。</p>
+    </div>
   </section>
+
+  <!-- 印刷用（画面には表示しない） -->
+  <section id="printArea"></section>
 </main>
 
 <script>
@@ -250,6 +316,7 @@ function save(state) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* 保存できない環境では何もしない */ }
 }
 let state = load() || { deathDate: "", answers: {}, done: {} };
+if (!state.records) state.records = [];   // 前の版で保存したデータにも記録帳を用意する
 
 // ===== 日付の計算 =====
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
@@ -391,6 +458,68 @@ function renderList() {
   document.getElementById("bar").style.width = `${items.length ? doneCount / items.length * 100 : 0}%`;
 }
 
+// ===== 記録帳 =====
+const RECORD_TYPES = ["預貯金", "証券・投資", "保険", "年金", "不動産", "車", "借入・ローン・保証", "クレジットカード", "サブスク・定期購入", "スマホ・ネット", "その他"];
+const RECORD_STATUS = ["未対応", "対応中", "完了"];
+let editingId = null;   // 編集中の記録の番号（新規のときは null）
+
+// 入力された文字を、画面に安全に表示するための変換
+function esc(t) {
+  return String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderRecords() {
+  const list = state.records;
+  document.getElementById("recList").innerHTML = list.length === 0
+    ? `<div class="card rec-empty">まだ記録はありません。<br>通帳・郵便物・スマホなどで見つけたものを書き留めていきましょう。</div>`
+    : RECORD_TYPES.flatMap(type => list.filter(r => r.type === type)).map(r => `
+      <div class="card ${r.status === "完了" ? "status-done" : ""}">
+        <span class="rec-type">${esc(r.type)}</span>
+        <div class="rec-name">${esc(r.name)}</div>
+        ${r.memo ? `<div class="rec-memo">${esc(r.memo)}</div>` : ""}
+        <div class="rec-actions">
+          <select data-status="${r.id}" aria-label="状態">
+            ${RECORD_STATUS.map(st => `<option ${st === r.status ? "selected" : ""}>${st}</option>`).join("")}
+          </select>
+          <button type="button" class="btn-s" data-edit="${r.id}">編集</button>
+          <button type="button" class="btn-s danger" data-del="${r.id}">削除</button>
+        </div>
+      </div>`).join("");
+}
+
+function resetRecordForm() {
+  editingId = null;
+  document.getElementById("recType").value = RECORD_TYPES[0];
+  document.getElementById("recName").value = "";
+  document.getElementById("recMemo").value = "";
+  document.getElementById("recFormTitle").textContent = "見つかったものを書き留める";
+  document.getElementById("recSave").textContent = "記録帳に追加する";
+  document.getElementById("recCancel").classList.add("hidden");
+}
+
+// 印刷用の表を作る
+function buildPrint() {
+  const today = new Date();
+  const rows = RECORD_TYPES.flatMap(type => state.records.filter(r => r.type === type)).map(r => `
+    <tr><td>${esc(r.type)}</td><td>${esc(r.name)}</td><td>${esc(r.memo || "").replace(/\n/g, "<br>")}</td><td>${esc(r.status)}</td></tr>`).join("");
+  const blanks = Array(6).fill(`<tr class="blank"><td></td><td></td><td></td><td></td></tr>`).join("");
+  document.getElementById("printArea").innerHTML = `
+    <h1>記録帳（判明した資産・契約）</h1>
+    <div>亡くなった日：${state.deathDate ? fmt(new Date(state.deathDate + "T00:00:00")) : "－"}　／　作成日：${fmt(today)}</div>
+    <table>
+      <thead><tr><th style="width:18%">種類</th><th style="width:28%">名称</th><th>メモ</th><th style="width:12%">状態</th></tr></thead>
+      <tbody>${rows}${blanks}</tbody>
+    </table>
+    <p class="foot">家族の整理用のメモです。口座番号・パスワードは記載していません。期限や手続きの判断は、役所や専門家にご確認ください。</p>`;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  document.getElementById("tabTasks").classList.toggle("hidden", tab !== "tasks");
+  document.getElementById("tabRecords").classList.toggle("hidden", tab !== "records");
+  if (tab === "records") renderRecords();
+}
+
 function show(screen) {
   document.getElementById("setup").classList.toggle("hidden", screen !== "setup");
   document.getElementById("list").classList.toggle("hidden", screen !== "list");
@@ -413,6 +542,68 @@ document.getElementById("startBtn").addEventListener("click", () => {
 document.getElementById("editBtn").addEventListener("click", () => show("setup"));
 
 document.getElementById("questions").addEventListener("change", updateCounts);
+
+// ----- 記録帳の操作 -----
+document.getElementById("recType").innerHTML = RECORD_TYPES.map(t => `<option>${t}</option>`).join("");
+
+document.querySelector(".tabs").addEventListener("click", e => {
+  if (e.target.dataset.tab) switchTab(e.target.dataset.tab);
+});
+
+document.getElementById("recSave").addEventListener("click", () => {
+  const name = document.getElementById("recName").value.trim();
+  if (!name) { alert("名称を入力してください"); return; }
+  const data = {
+    type: document.getElementById("recType").value,
+    name: name,
+    memo: document.getElementById("recMemo").value.trim(),
+  };
+  if (editingId) {
+    Object.assign(state.records.find(r => r.id === editingId), data);
+  } else {
+    state.records.push({ id: Date.now().toString(), status: "未対応", ...data });
+  }
+  save(state);
+  resetRecordForm();
+  renderRecords();
+});
+
+document.getElementById("recCancel").addEventListener("click", resetRecordForm);
+
+document.getElementById("recList").addEventListener("click", e => {
+  const editId = e.target.dataset.edit, delId = e.target.dataset.del;
+  if (editId) {
+    const r = state.records.find(r => r.id === editId);
+    editingId = editId;
+    document.getElementById("recType").value = r.type;
+    document.getElementById("recName").value = r.name;
+    document.getElementById("recMemo").value = r.memo || "";
+    document.getElementById("recFormTitle").textContent = "記録を編集する";
+    document.getElementById("recSave").textContent = "変更を保存する";
+    document.getElementById("recCancel").classList.remove("hidden");
+    window.scrollTo({ top: document.getElementById("tabRecords").offsetTop - 8, behavior: "smooth" });
+  }
+  if (delId && confirm("この記録を削除しますか？")) {
+    state.records = state.records.filter(r => r.id !== delId);
+    if (editingId === delId) resetRecordForm();
+    save(state);
+    renderRecords();
+  }
+});
+
+document.getElementById("recList").addEventListener("change", e => {
+  const id = e.target.dataset.status;
+  if (!id) return;
+  state.records.find(r => r.id === id).status = e.target.value;
+  save(state);
+  renderRecords();
+});
+
+document.getElementById("printBtn").addEventListener("click", () => {
+  buildPrint();
+  window.print();
+});
+window.addEventListener("beforeprint", buildPrint);   // ブラウザのメニューから印刷した場合にも対応
 
 document.getElementById("groups").addEventListener("change", e => {
   if (!e.target.dataset.id) return;
