@@ -63,6 +63,7 @@
   .hidden { display: none !important; }   /* 他の指定より必ず優先して隠す */
   .site-foot { margin: 32px 0 16px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--sub); }
   .site-foot p { margin: 6px 0; }
+  .contact a { color: var(--accent); }
   .site-foot details { font-size: 14px; margin: 0 0 8px; }
   .site-foot summary { color: var(--accent); }
   .site-foot ul { padding-left: 1.2em; margin: 8px 0; }
@@ -310,6 +311,9 @@
       <p class="meta">iPhoneでは、Safariで入力した内容と、ホーム画面のアイコンから開いたときの内容は別々に保存されます。ホーム画面に追加してから使い始めてください。</p>
       <h2>入力した内容について</h2>
       <p>入力した内容は、お使いのスマホの中だけに保存され、外部には送られません。機種変更やデータの削除に備えて、ときどき「データのバックアップ」から保存してください。</p>
+      <h2>お問い合わせ</h2>
+      <p>内容の誤りのご指摘や、ご意見はこちらへお送りください。<br><span class="contact"></span></p>
+      <p class="meta">個別の手続きや相続についてのご相談にはお答えできません。</p>
     </div>
   </section>
 
@@ -337,6 +341,7 @@
     </details>
     <p>情報の最終確認日：2026年10月18日</p>
     <p>制作：林 萃華（はやし ずいか）／葬儀業界12年・1級葬祭ディレクター</p>
+    <p>お問い合わせ：<span class="contact"></span></p>
   </footer>
 
   <!-- バックアップファイルを選ぶための部品（画面には見えない） -->
@@ -816,6 +821,13 @@ document.getElementById("title").addEventListener("click", e => {
 });
 // 上部の「メニュー」ボタン
 document.getElementById("backBtn").addEventListener("click", () => show("title"));
+
+// お問い合わせ先（迷惑メール対策として、ページを開いたときに組み立てる）
+(() => {
+  const addr = ["ahashi184", "gmail.com"].join("@");
+  const href = `mailto:${addr}?subject=${encodeURIComponent("手続きナビについて")}`;
+  document.querySelectorAll(".contact").forEach(el => { el.innerHTML = `<a href="${href}">${addr}</a>`; });
+})();
 
 // メニューのアイコンを描く
 document.querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icon(el.dataset.icon); });
