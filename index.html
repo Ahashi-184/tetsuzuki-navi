@@ -96,6 +96,12 @@
   .howto h2:first-child { margin-top: 0; }
   .howto ol { padding-left: 1.3em; }
   .howto li { margin-bottom: 12px; }
+  /* リセット */
+  .link-btn { background: transparent; color: var(--sub); font-size: 14px; text-decoration: underline; padding: 8px; margin-top: 4px; }
+  .reset-panel { border: 2px solid var(--warn); margin-top: 8px; }
+  .reset-panel p { font-size: 15px; }
+  .reset-warn { color: var(--warn); font-weight: bold; }
+  .danger-btn { background: var(--warn); }
   /* 亡くなった日の入力をうながす欄 */
   .date-banner { border: 2px solid var(--soon); background: #fdf6ea; }
   .date-banner input { margin-top: 8px; }
@@ -214,6 +220,15 @@
       <span class="menu-arrow">›</span>
     </button>
     <button type="button" class="sub" id="homeRestore">機種変更などで、バックアップから戻す</button>
+    <button type="button" class="link-btn" id="resetBtn">入力内容をすべて消して、最初から使う</button>
+    <!-- リセットの確認（1段階目） -->
+    <div id="resetPanel" class="card reset-panel hidden">
+      <strong>入力内容をすべて消しますか？</strong>
+      <p id="resetMsg"></p>
+      <button type="button" id="resetBackup">先にバックアップを保存する</button>
+      <button type="button" class="danger-btn" id="resetGo">消して最初からやり直す</button>
+      <button type="button" class="sub" id="resetCancel">やめる</button>
+    </div>
   </section>
 
   <!-- ===== 設定（生前の準備・亡くなった後で共通） ===== -->
@@ -499,6 +514,7 @@ function load() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || null; } catch (e) { return null; }
 }
 function save(state) {
+  state.updatedAt = new Date().toISOString();   // 最後に内容が変わった時刻（バックアップとの比較に使う）
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* 保存できない環境では何もしない */ }
 }
 let state = load() || { deathDate: "", answers: {}, done: {} };
@@ -786,7 +802,7 @@ function show(screen) {
   const withBackup = ["before", "after", "records"].includes(screen);
   document.getElementById("backupCard").classList.toggle("hidden", !withBackup);
   if (withBackup) renderBackupStatus();
-  if (screen === "title") renderTitle();
+  if (screen === "title") { renderTitle(); document.getElementById("resetPanel").classList.add("hidden"); }
   else if (screen === "setup") renderSetup();
   else if (screen === "before") renderBefore();
   else if (screen === "after") renderList();
@@ -1034,7 +1050,9 @@ function renderBackupStatus() {
   el.innerHTML = days >= 14 ? `<span class="backup-warn">${text}（${days}日前）。そろそろ保存をおすすめします。</span>` : text;
 }
 
-document.getElementById("backupSave").addEventListener("click", async () => {
+// バックアップを保存する（保存できたら true を返す）
+async function doBackup() {
+  state.prevBackup = state.lastBackup;
   state.lastBackup = new Date().toISOString();
   const data = { app: BACKUP_APP, version: 1, savedAt: state.lastBackup, state: state };
   const d = new Date();
@@ -1044,7 +1062,7 @@ document.getElementById("backupSave").addEventListener("click", async () => {
   // iPhoneなどは共有メニューから「ファイルに保存」できる
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: "手続きナビのバックアップ" }); }
-    catch (e) { return; }   // 保存せずに閉じた場合は、保存日を更新しない
+    catch (e) { state.lastBackup = state.prevBackup; return false; }   // 保存せずに閉じた場合は、保存日を戻す
   } else {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name; a.click();
@@ -1052,7 +1070,9 @@ document.getElementById("backupSave").addEventListener("click", async () => {
   }
   save(state);
   renderBackupStatus();
-});
+  return true;
+}
+document.getElementById("backupSave").addEventListener("click", doBackup);
 
 document.getElementById("backupLoad").addEventListener("click", () => document.getElementById("backupFile").click());
 document.getElementById("homeRestore").addEventListener("click", () => document.getElementById("backupFile").click());
@@ -1079,6 +1099,49 @@ document.getElementById("backupFile").addEventListener("change", e => {
     show("title");
   };
   reader.readAsText(f);
+});
+
+// ===== リセット（2段階で確認する） =====
+// 何か入力されているか
+function hasData() {
+  return !!(state.setupBefore || state.setupDone || state.records.length || Object.keys(state.done || {}).length);
+}
+// 最後のバックアップの後に変更があるか（保存の操作そのものの数秒の差は無視する）
+function hasUnsaved() {
+  if (!state.lastBackup) return true;
+  return new Date(state.updatedAt) - new Date(state.lastBackup) > 3000;
+}
+
+function openResetPanel() {
+  const msg = document.getElementById("resetMsg");
+  const backupBtn = document.getElementById("resetBackup");
+  if (!hasData()) {
+    msg.textContent = "まだ何も入力されていません。";
+    backupBtn.classList.add("hidden");
+  } else if (hasUnsaved()) {
+    msg.innerHTML = `<span class="reset-warn">${state.lastBackup ? "最後にバックアップを保存した後に、入力した内容があります。" : "まだバックアップを保存していません。"}消した内容は元に戻せません。</span><br>残しておきたい場合は、先にバックアップを保存してください。`;
+    backupBtn.classList.remove("hidden");
+  } else {
+    msg.textContent = `${fmt(new Date(state.lastBackup))}に保存したバックアップから、いつでも元に戻せます。`;
+    backupBtn.classList.add("hidden");
+  }
+  document.getElementById("resetPanel").classList.remove("hidden");
+  document.getElementById("resetPanel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+document.getElementById("resetBtn").addEventListener("click", openResetPanel);
+document.getElementById("resetCancel").addEventListener("click", () => document.getElementById("resetPanel").classList.add("hidden"));
+document.getElementById("resetBackup").addEventListener("click", async () => {
+  if (await doBackup()) openResetPanel();   // 保存できたら、メッセージを更新する
+});
+document.getElementById("resetGo").addEventListener("click", () => {
+  // 2段階目の確認
+  if (!confirm("本当にすべての入力内容を消しますか？\nこの操作は取り消せません。")) return;
+  try { localStorage.removeItem(STORE_KEY); } catch (e) { /* 何もしない */ }
+  state = { deathDate: "", answers: {}, done: {}, records: [] };
+  document.getElementById("resetPanel").classList.add("hidden");
+  show("title");
+  alert("すべての入力内容を消しました。");
 });
 
 // 共有メニューが使える端末だけ「送る」ボタンを出す
