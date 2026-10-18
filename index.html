@@ -728,8 +728,9 @@ function itemHTML(item) {
   if (d) {
     const left = daysLeft(d);
     const cls = left < 0 ? "due-warn" : left <= 7 ? "due-soon" : "";
-    const leftText = left < 0 ? `${-left}日過ぎています` : `あと${left}日`;
-    dueText = `<span class="${cls}">${fmt(d)}まで（${leftText}）</span>`;
+    // 「あと◯日」は60日以内だけ付ける（2年後などの遠い期限は日付だけ）
+    const leftText = left < 0 ? `（${-left}日過ぎています）` : left <= 60 ? `（あと${left}日）` : "";
+    dueText = `<span class="${cls}">${fmt(d)}まで${leftText}</span>`;
   } else if (!item.due) dueText = "";
   else if (item.due.type === "days" || item.due.type === "months") dueText = relativeText(item);
   else if (item.due.type === "asap") dueText = "速やかに";
