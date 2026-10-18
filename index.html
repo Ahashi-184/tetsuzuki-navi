@@ -52,6 +52,7 @@
   .progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 8px 0 4px; }
   .progress div { height: 100%; background: var(--accent); }
   .hidden { display: none; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
   /* 亡くなった日の入力をうながす欄 */
   .date-banner { border: 2px solid var(--soon); background: #fdf6ea; }
   .date-banner input { margin-top: 8px; }
@@ -74,6 +75,8 @@
     display: block; width: 100%; margin-top: 4px; font-size: 17px; font-family: inherit;
     padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text);
   }
+  .backup { margin-top: 28px; }
+  .backup-warn { color: var(--soon); font-weight: bold; }
   .out-btns { display: flex; gap: 8px; }
   .out-btns button { flex: 1; padding: 12px 6px; font-size: 16px; }
   .rec-type { display: inline-block; font-size: 13px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
@@ -147,6 +150,7 @@
       <span class="entry-title">亡くなった後の手続きをする</span>
       <span class="entry-desc">亡くなった日から、やるべき手続きを期限の近い順に表示します</span>
     </button>
+    <button type="button" class="sub" id="homeRestore">機種変更などで、バックアップから戻す</button>
   </section>
 
   <!-- ===== 画面1：初期設定 ===== -->
@@ -220,9 +224,23 @@
       <button type="button" id="shareBtn" class="sub hidden">記録帳を送る（LINE・メール・メモ）</button>
       <button type="button" class="sub" id="printBtn">記録帳を印刷する</button>
       <p class="warn-box hidden" id="printHelp">ホーム画面から開いたアプリでは、iPhoneの仕組み上、印刷ができません。「画像で保存・送る」で写真に保存すると、写真アプリから印刷できます。</p>
-      <p class="meta">記録はこの端末の中だけに保存されます。家族と共有するときは、印刷するか、印刷画面から PDF にして送ってください。</p>
+      <p class="meta">記録はこの端末の中だけに保存されます。家族と共有するときは「文章でコピー」か「画像で保存・送る」を使ってください。</p>
+    </div>
+
+    <!-- ===== バックアップ（全タブ共通） ===== -->
+    <div class="card backup">
+      <strong>データのバックアップ</strong>
+      <p class="meta" id="backupStatus"></p>
+      <div class="out-btns">
+        <button type="button" class="sub" id="backupSave">保存する</button>
+        <button type="button" class="sub" id="backupLoad">保存したものから戻す</button>
+      </div>
+      <p class="meta">入力した内容は、この端末の中にしかありません。機種変更やデータの削除に備えて、ときどき保存してください。保存したファイルには記録帳の内容が含まれるので、人に渡さないよう注意してください。</p>
     </div>
   </section>
+
+  <!-- バックアップファイルを選ぶための部品（画面には見えない） -->
+  <input type="file" id="backupFile" accept=".json,application/json" class="visually-hidden">
 
   <!-- 印刷用（画面には表示しない） -->
   <section id="printArea"></section>
@@ -631,7 +649,7 @@ function show(screen) {
   document.getElementById("home").classList.toggle("hidden", screen !== "home");
   document.getElementById("setup").classList.toggle("hidden", screen !== "setup");
   document.getElementById("list").classList.toggle("hidden", screen !== "list");
-  if (screen === "list") switchTab(state.tab || "before");
+  if (screen === "list") { switchTab(state.tab || "before"); renderBackupStatus(); }
   else if (screen === "setup") renderSetup();
   window.scrollTo(0, 0);
 }
@@ -854,6 +872,67 @@ document.getElementById("imageBtn").addEventListener("click", () => {
     a.href = URL.createObjectURL(blob); a.download = "kirokucho.png"; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }, "image/png");
+});
+
+// ===== バックアップ（保存と復元） =====
+const BACKUP_APP = "tetsuzuki-navi";   // 他のアプリのファイルと区別するための目印
+
+function renderBackupStatus() {
+  const el = document.getElementById("backupStatus");
+  if (!state.lastBackup) {
+    el.innerHTML = `<span class="backup-warn">まだ一度も保存していません。</span>`;
+    return;
+  }
+  const days = Math.floor((Date.now() - new Date(state.lastBackup)) / 86400000);
+  const text = `最後に保存した日：${fmt(new Date(state.lastBackup))}`;
+  el.innerHTML = days >= 14 ? `<span class="backup-warn">${text}（${days}日前）。そろそろ保存をおすすめします。</span>` : text;
+}
+
+document.getElementById("backupSave").addEventListener("click", async () => {
+  state.lastBackup = new Date().toISOString();
+  const data = { app: BACKUP_APP, version: 1, savedAt: state.lastBackup, state: state };
+  const d = new Date();
+  const name = `tetsuzuki-navi-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}.json`;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const file = new File([blob], name, { type: "application/json" });
+  // iPhoneなどは共有メニューから「ファイルに保存」できる
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: "手続きナビのバックアップ" }); }
+    catch (e) { return; }   // 保存せずに閉じた場合は、保存日を更新しない
+  } else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  save(state);
+  renderBackupStatus();
+});
+
+document.getElementById("backupLoad").addEventListener("click", () => document.getElementById("backupFile").click());
+document.getElementById("homeRestore").addEventListener("click", () => document.getElementById("backupFile").click());
+
+document.getElementById("backupFile").addEventListener("change", e => {
+  const f = e.target.files[0];
+  e.target.value = "";   // 同じファイルをもう一度選べるようにする
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); } catch (err) { data = null; }
+    if (!data || data.app !== BACKUP_APP || !data.state) {
+      alert("手続きナビのバックアップファイルではありません。");
+      return;
+    }
+    if (!confirm(`${fmt(new Date(data.savedAt))}に保存した内容に戻します。今の内容は上書きされます。よろしいですか？`)) return;
+    state = data.state;
+    if (!state.records) state.records = [];
+    if (!state.done) state.done = {};
+    if (!state.answers) state.answers = {};
+    save(state);
+    alert("バックアップから戻しました。");
+    show(state.tab ? "list" : "home");
+  };
+  reader.readAsText(f);
 });
 
 // 共有メニューが使える端末だけ「送る」ボタンを出す
