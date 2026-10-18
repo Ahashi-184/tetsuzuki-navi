@@ -6,6 +6,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>手続きナビ</title>
 <!-- アプリ化（ホーム画面に追加）の設定 -->
+<meta name="description" content="もしもの時の準備から、亡くなった後の手続きまでを、期限の近い順に案内する無料アプリです。登録不要で、入力内容は端末の中だけに保存されます。">
+<!-- LINEやSNSでリンクを共有したときの表示 -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="手続きナビ">
+<meta property="og:description" content="もしもの時の準備から、亡くなった後の手続きまでを、期限の近い順に案内する無料アプリです。登録不要で、入力内容は端末の中だけに保存されます。">
+<meta property="og:url" content="https://ahashi-184.github.io/tetsuzuki-navi/">
+<meta property="og:image" content="https://ahashi-184.github.io/tetsuzuki-navi/ogp.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4a6b5d">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -52,6 +61,12 @@
   .progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 8px 0 4px; }
   .progress div { height: 100%; background: var(--accent); }
   .hidden { display: none; }
+  .site-foot { margin: 32px 0 16px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--sub); }
+  .site-foot p { margin: 6px 0; }
+  .site-foot details { font-size: 14px; margin: 0 0 8px; }
+  .site-foot summary { color: var(--accent); }
+  .site-foot ul { padding-left: 1.2em; margin: 8px 0; }
+  .site-foot li { margin-bottom: 6px; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
   /* 亡くなった日の入力をうながす欄 */
   .date-banner { border: 2px solid var(--soon); background: #fdf6ea; }
@@ -239,6 +254,21 @@
     </div>
   </section>
 
+  <!-- ===== ご利用にあたって（全画面共通） ===== -->
+  <footer class="site-foot">
+    <details>
+      <summary>ご利用にあたって</summary>
+      <ul>
+        <li>表示している手続きや期限は、一般的な目安です。個別の事情によって異なる場合があります。正確な内容は、役所や年金事務所、専門家（司法書士・税理士など）にご確認ください。</li>
+        <li>このアプリは、法律や税務についての個別の助言を行うものではありません。</li>
+        <li>入力した内容は、お使いの端末の中だけに保存されます。運営者を含め、外部に送信されることはありません。</li>
+        <li>このアプリの利用によって生じた損害について、運営者は責任を負いかねます。</li>
+      </ul>
+    </details>
+    <p>情報の最終確認日：2026年10月18日</p>
+    <p>制作：林 萃華（はやし ずいか）／葬儀業界12年・1級葬祭ディレクター</p>
+  </footer>
+
   <!-- バックアップファイルを選ぶための部品（画面には見えない） -->
   <input type="file" id="backupFile" accept=".json,application/json" class="visually-hidden">
 
@@ -317,7 +347,7 @@ const ITEMS = [
   { id:"d3", name:"健康保険の資格喪失（会社の健康保険）", due:{type:"days", n:5}, cond:"company", place:"勤務先", reason:"手続きは勤務先が行う。家族は連絡と保険証の返却のみ" },
   { id:"d4", name:"国民健康保険・後期高齢者医療の資格喪失", due:{type:"days", n:14}, cond:"kokuho", place:"市区町村役場" },
   { id:"d5", name:"介護保険の資格喪失", due:{type:"days", n:14}, cond:"over65", place:"市区町村役場" },
-  { id:"d6", name:"年金の受給停止（受給権者死亡届）", due:{type:"days", n:10}, cond:"pension", place:"年金事務所・市区町村役場", reason:"遅れると、払われ過ぎた年金の返還を求められる", note:"期限は厚生年金が10日、国民年金が14日です。マイナンバー登録済みなら省略できる場合があります。" },
+  { id:"d6", name:"年金の受給停止（受給権者死亡届）", due:{type:"days", n:10}, cond:"pension", place:"年金事務所・市区町村役場", reason:"遅れると、払われ過ぎた年金の返還を求められる", note:"期限は厚生年金が10日、国民年金が14日です。日本年金機構にマイナンバーが登録されている場合は、原則として届出を省略できます。" },
   { id:"d7", name:"世帯主変更届", due:{type:"days", n:14}, cond:"householder", place:"市区町村役場" },
   { id:"d8", name:"勤務先への連絡（退職手続き・死亡退職金）", due:{type:"asap"}, cond:"company", place:"勤務先", reason:"未払いの給与や死亡退職金の受取人を確認するため" },
 
