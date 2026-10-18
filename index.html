@@ -319,7 +319,10 @@
       <div class="progress"><div id="barBefore"></div></div>
     </div>
     <div id="beforeGroups"></div>
-    <button type="button" class="share-progress" data-kind="before">進み具合を家族に送る</button>
+    <div class="out-btns">
+      <button type="button" class="share-image" data-kind="before">進み具合を画像で送る</button>
+      <button type="button" class="sub share-progress" data-kind="before">文章で送る</button>
+    </div>
     <button class="sub" id="editBefore">設定をやり直す</button>
   </section>
 
@@ -340,7 +343,10 @@
       <p class="meta">亡くなってすぐの場合は、14日以内の手続きがあります。先に日付を入れてください。</p>
     </div>
     <div id="afterGroups"></div>
-    <button type="button" class="share-progress" data-kind="after">進み具合を家族に送る</button>
+    <div class="out-btns">
+      <button type="button" class="share-image" data-kind="after">進み具合を画像で送る</button>
+      <button type="button" class="sub share-progress" data-kind="after">文章で送る</button>
+    </div>
     <p class="meta">送る文章には、年金や借金の有無など、ご家庭の事情が分かる項目が含まれます。送る相手に注意してください。</p>
     <button class="sub" id="editAfter">設定をやり直す</button>
     <p class="meta">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
@@ -1235,24 +1241,26 @@ document.getElementById("resetGo").addEventListener("click", () => {
   alert("すべての入力内容を消しました。");
 });
 
-// ===== 進み具合を文章にして送る（その時点の写し） =====
-function progressText(kind) {
+// ===== 進み具合をまとめる（文章と画像の両方で使う。送った時点の写し） =====
+function progressData(kind) {
   const today = new Date();
-  const stamp = `${today.getMonth() + 1}月${today.getDate()}日時点`;
   const short = name => name.replace(/（.*?）/g, "");   // かっこ書きは省いて短くする
-  const lines = [];
+  const data = { stamp: `${fmt(today)}時点`, groups: [], done: [] };
   if (kind === "before") {
     const items = beforeItems();
-    const done = items.filter(i => state.done[i.id]);
-    lines.push(`【手続きナビ】生前の準備（${stamp}）`, `完了 ${done.length} / ${items.length} 件`, "");
+    data.title = "生前の準備";
+    data.done = items.filter(i => state.done[i.id]).map(i => short(i.name));
+    data.total = items.length;
     BEFORE_GROUPS.forEach(g => {
       const rest = items.filter(i => i.timing === g.id && !state.done[i.id]);
-      if (rest.length) { lines.push(`■ ${g.title}（まだのもの）`); rest.forEach(i => lines.push(`・${short(i.name)}`)); lines.push(""); }
+      if (rest.length) data.groups.push({ title: `${g.title}（まだのもの）`, rows: rest.map(i => ({ name: short(i.name), due: "", cls: "" })) });
     });
-    if (done.length) { lines.push("■ 済んだもの"); done.forEach(i => lines.push(`済 ${short(i.name)}`)); }
   } else {
     const items = ITEMS.filter(i => matches(i.cond));
-    const done = items.filter(i => state.done[i.id]);
+    data.title = "亡くなった後の手続き";
+    if (state.deathDate) data.sub = `亡くなった日：${fmt(new Date(state.deathDate + "T00:00:00"))}`;
+    data.done = items.filter(i => state.done[i.id]).map(i => short(i.name));
+    data.total = items.length;
     // 急ぐ順：60日以内の期限 → 速やかに → それより先の期限 → 時期を見て行うもの
     const urgency = i => {
       const d = dueDate(i);
@@ -1261,32 +1269,147 @@ function progressText(kind) {
       if (i.due.type === "days" || i.due.type === "months") return dueKey(i);
       return 100000;
     };
-    const rest = items.filter(i => !state.done[i.id]).sort((a, b) => urgency(a) - urgency(b));
-    lines.push(`【手続きナビ】亡くなった後の手続き（${stamp}）`);
-    if (state.deathDate) lines.push(`亡くなった日：${fmt(new Date(state.deathDate + "T00:00:00"))}`);
-    lines.push(`完了 ${done.length} / ${items.length} 件`, "");
-    if (rest.length) {
-      lines.push("■ まだのもの（期限が近い順）");
-      rest.forEach(i => {
-        const d = dueDate(i);
-        let due = "";
-        if (d) {
-          const left = daysLeft(d);
-          // 今年中なら月日だけ、来年以降は年も書く。「あと◯日」は60日以内だけ
-          const date = d.getFullYear() === today.getFullYear() ? `${d.getMonth() + 1}月${d.getDate()}日` : fmt(d);
-          due = `${date}まで` + (left < 0 ? `（${-left}日過ぎています）` : left <= 60 ? `（あと${left}日）` : "");
-        } else if (i.due.type === "asap") due = "速やかに";
-        else if (i.due.type === "days" || i.due.type === "months") due = relativeText(i);
-        else if (i.due.type === "label") due = i.due.text;
-        lines.push(`・${short(i.name)}${due ? "　" + due : ""}`);
-      });
-      lines.push("");
-    }
-    if (done.length) { lines.push("■ 済んだもの"); done.forEach(i => lines.push(`済 ${short(i.name)}`)); }
+    const rest = items.filter(i => !state.done[i.id]).sort((x, y) => urgency(x) - urgency(y));
+    const rows = rest.map(i => {
+      const d = dueDate(i);
+      let due = "", cls = "";
+      if (d) {
+        const left = daysLeft(d);
+        // 今年中なら月日だけ、来年以降は年も書く。「あと◯日」は60日以内だけ
+        const date = d.getFullYear() === today.getFullYear() ? `${d.getMonth() + 1}月${d.getDate()}日` : fmt(d);
+        due = `${date}まで` + (left < 0 ? `（${-left}日過ぎています）` : left <= 60 ? `（あと${left}日）` : "");
+        cls = left < 0 ? "warn" : left <= 7 ? "soon" : "";
+      } else if (i.due.type === "asap") due = "速やかに";
+      else if (i.due.type === "days" || i.due.type === "months") due = relativeText(i);
+      else if (i.due.type === "label") due = i.due.text;
+      return { name: short(i.name), due, cls };
+    });
+    if (rows.length) data.groups.push({ title: "まだのもの（期限が近い順）", rows });
   }
+  return data;
+}
+
+// 文章にする
+function progressText(kind) {
+  const d = progressData(kind);
+  const lines = [`【手続きナビ】${d.title}（${d.stamp}）`];
+  if (d.sub) lines.push(d.sub);
+  lines.push(`完了 ${d.done.length} / ${d.total} 件`, "");
+  d.groups.forEach(g => {
+    lines.push(`■ ${g.title}`);
+    g.rows.forEach(r => lines.push(`・${r.name}${r.due ? "　" + r.due : ""}`));
+    lines.push("");
+  });
+  if (d.done.length) { lines.push("■ 済んだもの"); d.done.forEach(n => lines.push(`済 ${n}`)); }
   lines.push("", "※送った時点の内容です。期限は目安なので、役所や専門家にもご確認ください。");
   return lines.join("\n");
 }
+
+// 画像にする（記録帳の画像と同じ仕組み）
+function progressImage(kind) {
+  const d = progressData(kind);
+  const W = 1080, P = 56, FS = 30, LH = 46;
+  const C = { ink: "#24292b", sub: "#5d6664", line: "#d9dfdb", accent: "#4a6b5d", soft: "#e6eeea", shu: "#b3392b", soon: "#9a6512" };
+  const font = (size, bold) => `${bold ? "bold " : ""}${size}px "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif`;
+  const c = document.createElement("canvas"), ctx = c.getContext("2d");
+  // 期限の列がない（生前の準備）ときは、手続き名に横幅をすべて使う
+  const hasDue = d.groups.some(g => g.rows.some(r => r.due));
+  const nameW = hasDue ? 520 : W - P * 2 - 60, dueW = W - P * 2 - 520 - 80;
+
+  function wrap(text, width, size, bold) {
+    ctx.font = font(size, bold);   // 太字で描く文字は、太字の幅で折り返す
+    const out = []; let line = "";
+    for (const ch of String(text)) {
+      if (ctx.measureText(line + ch).width > width && line) { out.push(line); line = ch; } else line += ch;
+    }
+    out.push(line);
+    return out;
+  }
+
+  // 先に高さを計算する
+  let h = P + 60 + 44 + (d.sub ? 44 : 0) + 90;
+  const layout = d.groups.map(g => ({
+    title: g.title,
+    rows: g.rows.map(r => {
+      const n = wrap(r.name, nameW, FS, true), du = wrap(r.due, dueW, 26, !!r.cls);
+      return { ...r, n, du, h: Math.max(n.length * LH, du.length * 40) + 24 };
+    }),
+  }));
+  layout.forEach(g => { h += 90; g.rows.forEach(r => h += r.h); });
+  const doneRows = d.done.map(n => { const w = wrap(n, W - P * 2 - 80, FS); return { w, h: w.length * LH + 20 }; });
+  if (doneRows.length) { h += 90; doneRows.forEach(r => h += r.h); }
+  h += 90;
+  c.width = W; c.height = h;
+
+  // 背景と見出し
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, h);
+  ctx.fillStyle = C.accent; ctx.fillRect(0, 0, W, 12);
+  ctx.textBaseline = "top";
+  let y = P;
+  ctx.fillStyle = C.ink; ctx.font = font(46, true); ctx.fillText(d.title, P, y); y += 64;
+  ctx.fillStyle = C.sub; ctx.font = font(26); ctx.fillText(`手続きナビ／${d.stamp}`, P, y); y += 44;
+  if (d.sub) { ctx.fillText(d.sub, P, y); y += 44; }
+  // 進み具合
+  ctx.fillStyle = C.ink; ctx.font = font(30, true); ctx.fillText(`完了 ${d.done.length} / ${d.total} 件`, P, y + 6);
+  const bx = P + 280, bw = W - P - bx;
+  ctx.fillStyle = C.soft; ctx.fillRect(bx, y + 18, bw, 14);
+  ctx.fillStyle = C.accent; ctx.fillRect(bx, y + 18, d.total ? bw * d.done.length / d.total : 0, 14);
+  y += 90;
+
+  const heading = t => {
+    ctx.fillStyle = C.ink; ctx.font = font(32, true); ctx.fillText(t, P, y);
+    ctx.fillStyle = C.ink; ctx.fillRect(P, y + 48, W - P * 2, 3); y += 70;
+  };
+  let first = true;
+  layout.forEach(g => {
+    if (!first) y += 20;
+    first = false;
+    heading(g.title);
+    g.rows.forEach(r => {
+      ctx.fillStyle = C.line; ctx.beginPath(); ctx.arc(P + 12, y + 22, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = C.ink; ctx.font = font(FS, true); r.n.forEach((ln, k) => ctx.fillText(ln, P + 40, y + 6 + k * LH));
+      ctx.fillStyle = r.cls === "warn" ? C.shu : r.cls === "soon" ? C.soon : C.sub;
+      ctx.font = font(26, !!r.cls); r.du.forEach((ln, k) => ctx.fillText(ln, W - P - dueW, y + 10 + k * 40));
+      y += r.h;
+      ctx.fillStyle = C.line; ctx.fillRect(P, y - 10, W - P * 2, 2);
+    });
+  });
+  if (doneRows.length) {
+    if (!first) y += 20;
+    heading("済んだもの");
+    doneRows.forEach(r => {
+      // 朱色の「済」の判子
+      ctx.save(); ctx.translate(P + 26, y + 26); ctx.rotate(-0.2);
+      ctx.strokeStyle = C.shu; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = C.shu; ctx.font = font(26, true); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("済", 0, 1);
+      ctx.restore(); ctx.textBaseline = "top";
+      ctx.fillStyle = C.sub; ctx.font = font(FS); r.w.forEach((ln, k) => ctx.fillText(ln, P + 80, y + 8 + k * LH));
+      y += r.h;
+    });
+  }
+  ctx.fillStyle = C.sub; ctx.font = font(22);
+  ctx.fillText("送った時点の内容です。期限は目安なので、役所や専門家にもご確認ください。", P, h - 60);
+  return c;
+}
+
+// 画像を共有メニューで送る（パソコンは保存）
+function sendImage(canvas, filename, title) {
+  canvas.toBlob(async blob => {
+    const file = new File([blob], filename, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title }); } catch (e) { /* 閉じた場合は何もしない */ }
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, "image/png");
+}
+
+document.querySelectorAll(".share-image").forEach(btn => btn.addEventListener("click", async () => {
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;   // 書体の読み込みを待ってから描く
+  sendImage(progressImage(btn.dataset.kind), `tetsuzuki-${btn.dataset.kind === "before" ? "junbi" : "tetsuzuki"}.png`, "手続きナビ");
+}));
 
 document.querySelectorAll(".share-progress").forEach(btn => btn.addEventListener("click", async () => {
   const text = progressText(btn.dataset.kind);
