@@ -104,7 +104,19 @@
   .danger-btn { background: var(--warn); }
   /* 亡くなった日の入力をうながす欄 */
   .date-banner { border: 2px solid var(--soon); background: #fdf6ea; }
-  .date-banner input { margin-top: 8px; }
+  .date-banner .date-field { margin-top: 8px; }
+  /* 日付の欄：見た目はアプリで描き、その上に透明な日付入力を重ねる（iPhoneでも同じ見た目にするため） */
+  .date-field {
+    position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-top: 8px; min-height: 54px; padding: 12px 14px; background: #fff;
+    border: 1px solid var(--line); border-radius: 10px; font-size: 18px; color: var(--sub); cursor: pointer;
+  }
+  .date-field.filled { color: var(--text); font-weight: bold; }
+  .date-icon { width: 24px; height: 24px; color: var(--accent); flex-shrink: 0; }
+  .date-field input[type=date] {
+    position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0;
+    opacity: 0; border: none; -webkit-appearance: none; appearance: none; cursor: pointer;
+  }
   /* 入口 */
   .entry {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
@@ -241,8 +253,12 @@
     <p class="lead" id="setupLead"></p>
     <div class="card" id="dateCard">
       <strong>亡くなった日</strong>
-      <input type="date" id="deathDate">
-      <p class="meta">枠をタップすると、カレンダーから日付を選べます。分からない場合は空欄のままで進めます（後から入力できます）。</p>
+      <label class="date-field">
+        <span class="date-text">タップして日付を選ぶ</span>
+        <svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+        <input type="date" id="deathDate">
+      </label>
+      <p class="meta">分からない場合は、空欄のままで進めます（後から入力できます）。</p>
     </div>
     <div class="card">
       <strong>ご本人について、当てはまるものを選んでください</strong>
@@ -271,7 +287,11 @@
     <!-- 亡くなった日が未入力のときだけ表示する入力欄 -->
     <div id="dateBanner" class="card date-banner hidden">
       <strong>亡くなった日を入れると、期限の日付が表示されます</strong>
-      <input type="date" id="bannerDate">
+      <label class="date-field">
+        <span class="date-text">タップして日付を選ぶ</span>
+        <svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>
+        <input type="date" id="bannerDate">
+      </label>
       <p class="meta">亡くなってすぐの場合は、14日以内の手続きがあります。先に日付を入れてください。</p>
     </div>
     <div id="afterGroups"></div>
@@ -549,6 +569,25 @@ function daysLeft(d) {
   return Math.round((d - today) / 86400000);
 }
 
+// ===== 日付の欄の表示（選んだ日付を曜日つきで見せる） =====
+function syncDateText(input) {
+  const box = input.closest(".date-field");
+  const text = box.querySelector(".date-text");
+  if (input.value) {
+    const d = new Date(input.value + "T00:00:00");
+    text.textContent = `${fmt(d)}（${"日月火水木金土"[d.getDay()]}）`;
+    box.classList.add("filled");
+  } else {
+    text.textContent = "タップして日付を選ぶ";
+    box.classList.remove("filled");
+  }
+}
+document.querySelectorAll(".date-field input").forEach(input => {
+  input.addEventListener("change", () => syncDateText(input));
+  // パソコンのブラウザでも、枠のどこを押してもカレンダーが開くようにする
+  input.addEventListener("click", () => { try { input.showPicker && input.showPicker(); } catch (e) { /* 対応していない場合は何もしない */ } });
+});
+
 // ===== 画面1：質問を表示 =====
 function questionHTML(q) {
   // 選択式の質問（1つだけ選ぶ）
@@ -578,6 +617,7 @@ function renderSetup() {
     : "分かる範囲で答えてください。すべて飛ばして、そのまま進むこともできます。";
   document.getElementById("startBtn").textContent = after ? "手続きリストを作る" : "準備リストを作る";
   document.getElementById("deathDate").value = state.deathDate || "";
+  syncDateText(document.getElementById("deathDate"));
   // カテゴリごとに折りたためる箱を作る
   document.getElementById("questions").innerHTML = CATEGORIES.map(c => `
     <details class="cat" data-cat="${c.id}">
