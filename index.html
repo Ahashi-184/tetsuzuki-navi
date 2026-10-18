@@ -15,10 +15,10 @@
 <meta property="og:image" content="https://ahashi-184.github.io/tetsuzuki-navi/ogp.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<!-- 文字の書体（見出し：しっぽり明朝／本文：BIZ UDPゴシック） -->
+<!-- 文字の書体（すべて BIZ UDPゴシック） -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Shippori+Mincho:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4a6b5d">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -28,7 +28,7 @@
   /* =====================================================
      見た目の設定
      色：白練（紙）・墨（文字）・松葉（主の色）・朱（警告と「済」の判子）
-     文字：見出し＝しっぽり明朝／本文＝BIZ UDPゴシック（読みやすさ重視のUDフォント）
+     文字：すべて BIZ UDPゴシック（読みやすさ重視のUDフォント）
      ===================================================== */
   :root {
     --paper: #f3f5f2;      /* 白練：画面の地の色 */
@@ -41,7 +41,6 @@
     --shu: #b3392b;        /* 朱：期限切れ・「済」の判子・削除 */
     --soon: #9a6512;       /* 山吹：期限が近い */
     --soon-soft: #fbf3e4;
-    --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
     --gothic: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
   }
   * { box-sizing: border-box; }
@@ -51,10 +50,8 @@
     -webkit-text-size-adjust: 100%;
   }
   main { max-width: 600px; margin: 0 auto; padding: 16px; }
-  h1, h2, .topbar-title, .menu-title { font-feature-settings: "palt"; }   /* かなの間を詰めて読みやすくする */
-  h1, h2 { font-family: var(--mincho); font-weight: 700; letter-spacing: 0.04em; }
-  /* 一覧の見出しは読みやすさ優先でゴシック。明朝はタイトル・メニュー・画面名だけに使う */
-  h2 { font-family: var(--gothic); font-size: 20px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; }
+  h1, h2 { font-weight: 700; letter-spacing: 0.04em; }
+  h2 { font-size: 20px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; }
   .lead { color: var(--sub); margin: 0 0 16px; }
   .meta { font-size: 15px; color: var(--sub); line-height: 1.7; }
   .hidden { display: none !important; }   /* 他の指定より必ず優先して隠す */
@@ -76,7 +73,7 @@
   .topbar { position: sticky; top: 0; z-index: 20; background: var(--paper); margin: -16px -16px 14px; border-bottom: 1px solid var(--line); }
   .topbar-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
   .back { width: auto; margin: 0; padding: 8px 14px; font-size: 16px; background: var(--sheet); color: var(--accent); border: 1px solid var(--line); }
-  .topbar-title { font-family: var(--mincho); font-size: 19px; font-weight: 700; }
+  .topbar-title { font-size: 19px; font-weight: 700; }
 
   /* ----- タイトル画面 ----- */
   .title-head { text-align: center; padding: 36px 0 24px; }
@@ -92,7 +89,7 @@
   .menu:last-child { border-bottom: none; }
   .menu-icon .icon { width: 50px; height: 50px; padding: 11px; border-radius: 50%; }
   .menu-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-  .menu-title { font-family: var(--mincho); font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.4; }
+  .menu-title { font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.4; }
   .menu-status { font-size: 15px; color: var(--sub); line-height: 1.5; }
   .menu-status .due-soon, .menu-status .due-warn { font-size: 15px; }
   .menu-arrow { font-size: 30px; color: var(--accent); line-height: 1; }
@@ -119,7 +116,7 @@
   .seal {
     display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
     border: 2px solid var(--line); border-radius: 6px; background: var(--sheet);
-    font-family: var(--mincho); font-weight: 700; font-size: 20px; color: transparent;
+    font-weight: 700; font-size: 20px; color: transparent;
   }
   .check input:checked + .seal {
     border: 2.5px solid var(--shu); border-radius: 50%; color: var(--shu);
@@ -322,6 +319,7 @@
       <div class="progress"><div id="barBefore"></div></div>
     </div>
     <div id="beforeGroups"></div>
+    <button type="button" class="share-progress" data-kind="before">進み具合を家族に送る</button>
     <button class="sub" id="editBefore">設定をやり直す</button>
   </section>
 
@@ -342,6 +340,8 @@
       <p class="meta">亡くなってすぐの場合は、14日以内の手続きがあります。先に日付を入れてください。</p>
     </div>
     <div id="afterGroups"></div>
+    <button type="button" class="share-progress" data-kind="after">進み具合を家族に送る</button>
+    <p class="meta">送る文章には、年金や借金の有無など、ご家庭の事情が分かる項目が含まれます。送る相手に注意してください。</p>
     <button class="sub" id="editAfter">設定をやり直す</button>
     <p class="meta">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
   </section>
@@ -1234,6 +1234,76 @@ document.getElementById("resetGo").addEventListener("click", () => {
   show("title");
   alert("すべての入力内容を消しました。");
 });
+
+// ===== 進み具合を文章にして送る（その時点の写し） =====
+function progressText(kind) {
+  const today = new Date();
+  const stamp = `${today.getMonth() + 1}月${today.getDate()}日時点`;
+  const short = name => name.replace(/（.*?）/g, "");   // かっこ書きは省いて短くする
+  const lines = [];
+  if (kind === "before") {
+    const items = beforeItems();
+    const done = items.filter(i => state.done[i.id]);
+    lines.push(`【手続きナビ】生前の準備（${stamp}）`, `完了 ${done.length} / ${items.length} 件`, "");
+    BEFORE_GROUPS.forEach(g => {
+      const rest = items.filter(i => i.timing === g.id && !state.done[i.id]);
+      if (rest.length) { lines.push(`■ ${g.title}（まだのもの）`); rest.forEach(i => lines.push(`・${short(i.name)}`)); lines.push(""); }
+    });
+    if (done.length) { lines.push("■ 済んだもの"); done.forEach(i => lines.push(`済 ${short(i.name)}`)); }
+  } else {
+    const items = ITEMS.filter(i => matches(i.cond));
+    const done = items.filter(i => state.done[i.id]);
+    // 急ぐ順：60日以内の期限 → 速やかに → それより先の期限 → 時期を見て行うもの
+    const urgency = i => {
+      const d = dueDate(i);
+      if (d) return daysLeft(d);
+      if (i.due.type === "asap") return 60;
+      if (i.due.type === "days" || i.due.type === "months") return dueKey(i);
+      return 100000;
+    };
+    const rest = items.filter(i => !state.done[i.id]).sort((a, b) => urgency(a) - urgency(b));
+    lines.push(`【手続きナビ】亡くなった後の手続き（${stamp}）`);
+    if (state.deathDate) lines.push(`亡くなった日：${fmt(new Date(state.deathDate + "T00:00:00"))}`);
+    lines.push(`完了 ${done.length} / ${items.length} 件`, "");
+    if (rest.length) {
+      lines.push("■ まだのもの（期限が近い順）");
+      rest.forEach(i => {
+        const d = dueDate(i);
+        let due = "";
+        if (d) {
+          const left = daysLeft(d);
+          // 今年中なら月日だけ、来年以降は年も書く。「あと◯日」は60日以内だけ
+          const date = d.getFullYear() === today.getFullYear() ? `${d.getMonth() + 1}月${d.getDate()}日` : fmt(d);
+          due = `${date}まで` + (left < 0 ? `（${-left}日過ぎています）` : left <= 60 ? `（あと${left}日）` : "");
+        } else if (i.due.type === "asap") due = "速やかに";
+        else if (i.due.type === "days" || i.due.type === "months") due = relativeText(i);
+        else if (i.due.type === "label") due = i.due.text;
+        lines.push(`・${short(i.name)}${due ? "　" + due : ""}`);
+      });
+      lines.push("");
+    }
+    if (done.length) { lines.push("■ 済んだもの"); done.forEach(i => lines.push(`済 ${short(i.name)}`)); }
+  }
+  lines.push("", "※送った時点の内容です。期限は目安なので、役所や専門家にもご確認ください。");
+  return lines.join("\n");
+}
+
+document.querySelectorAll(".share-progress").forEach(btn => btn.addEventListener("click", async () => {
+  const text = progressText(btn.dataset.kind);
+  // スマホは共有メニュー（LINE・メールなど）、パソコンはコピー
+  if (navigator.share) {
+    try { await navigator.share({ title: "手続きナビ", text }); } catch (e) { /* 閉じた場合は何もしない */ }
+    return;
+  }
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+  }
+  const label = btn.textContent;
+  btn.textContent = "コピーしました。LINEなどに貼り付けてください";
+  setTimeout(() => { btn.textContent = label; }, 2500);
+}));
 
 // 共有メニューが使える端末だけ「送る」ボタンを出す
 if (navigator.share) document.getElementById("shareBtn").classList.remove("hidden");
