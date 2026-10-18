@@ -60,7 +60,7 @@
   .note { background: #f2efe9; border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
   .progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 8px 0 4px; }
   .progress div { height: 100%; background: var(--accent); }
-  .hidden { display: none; }
+  .hidden { display: none !important; }   /* 他の指定より必ず優先して隠す */
   .site-foot { margin: 32px 0 16px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--sub); }
   .site-foot p { margin: 6px 0; }
   .site-foot details { font-size: 14px; margin: 0 0 8px; }
@@ -68,6 +68,33 @@
   .site-foot ul { padding-left: 1.2em; margin: 8px 0; }
   .site-foot li { margin-bottom: 6px; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+  /* 上部のバー */
+  .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px; background: var(--bg); margin: -16px -16px 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .back { width: auto; margin: 0; padding: 8px 12px; font-size: 16px; background: var(--card); color: var(--accent); border: 1px solid var(--line); font-weight: bold; }
+  .topbar-title { font-size: 18px; font-weight: bold; }
+  .topbar ~ #setup .sticky-bar { top: 58px; }
+  /* タイトル画面 */
+  .title-head { text-align: center; padding: 24px 0 12px; }
+  .title-icon { width: 72px; height: 72px; border-radius: 18px; }
+  .title-head h1 { font-size: 30px; margin: 10px 0 4px; letter-spacing: 0.05em; }
+  .title-head .lead { font-size: 16px; }
+  .menu {
+    display: flex; align-items: center; gap: 14px; text-align: left; width: 100%;
+    background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 14px; margin: 0 0 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .menu-icon .icon { width: 48px; height: 48px; padding: 10px; border-radius: 12px; }
+  .menu-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .menu-title { font-size: 20px; font-weight: bold; color: var(--accent); }
+  .menu-status { font-size: 14px; color: var(--sub); }
+  .menu-status .due-soon, .menu-status .due-warn { font-size: 14px; }
+  .menu-arrow { font-size: 28px; color: var(--sub); }
+  .menu-light { background: transparent; box-shadow: none; }
+  .menu-light .menu-title { color: var(--text); font-size: 18px; }
+  .howto h2 { margin-top: 20px; font-size: 18px; }
+  .howto h2:first-child { margin-top: 0; }
+  .howto ol { padding-left: 1.3em; }
+  .howto li { margin-bottom: 12px; }
   /* 亡くなった日の入力をうながす欄 */
   .date-banner { border: 2px solid var(--soon); background: #fdf6ea; }
   .date-banner input { margin-top: 8px; }
@@ -152,107 +179,150 @@
 </head>
 <body>
 <main>
-  <h1>手続きナビ</h1>
-  <p class="lead">もしもの時の準備から、亡くなった後の手続きまでを案内します。</p>
+  <!-- ===== 上部のバー（タイトル画面以外で表示） ===== -->
+  <div id="topbar" class="topbar hidden">
+    <button type="button" class="back" id="backBtn">‹ メニュー</button>
+    <span class="topbar-title" id="screenTitle"></span>
+  </div>
 
-  <!-- ===== 画面0：入口（どちらを使うか選ぶ） ===== -->
-  <section id="home" class="hidden">
-    <button type="button" class="entry" data-mode="before">
-      <span class="entry-title">もしもに備えて準備する</span>
-      <span class="entry-desc">ご家族が元気なうちや、入院・介護が始まったときに確認しておくこと</span>
+  <!-- ===== タイトル画面（いつもここから始まる） ===== -->
+  <section id="title" class="hidden">
+    <div class="title-head">
+      <img src="icon-192.png" alt="" class="title-icon">
+      <h1>手続きナビ</h1>
+      <p class="lead">もしもの時の準備から、<br>亡くなった後の手続きまでを案内します。</p>
+    </div>
+    <button type="button" class="menu" data-go="before">
+      <span class="menu-icon" data-icon="sprout"></span>
+      <span class="menu-text"><span class="menu-title">生前の準備</span><span class="menu-status" id="stBefore"></span></span>
+      <span class="menu-arrow">›</span>
     </button>
-    <button type="button" class="entry" data-mode="after">
-      <span class="entry-title">亡くなった後の手続きをする</span>
-      <span class="entry-desc">亡くなった日から、やるべき手続きを期限の近い順に表示します</span>
+    <button type="button" class="menu" data-go="after">
+      <span class="menu-icon" data-icon="list"></span>
+      <span class="menu-text"><span class="menu-title">亡くなった後の手続き</span><span class="menu-status" id="stAfter"></span></span>
+      <span class="menu-arrow">›</span>
+    </button>
+    <button type="button" class="menu" data-go="records">
+      <span class="menu-icon" data-icon="book"></span>
+      <span class="menu-text"><span class="menu-title">記録帳</span><span class="menu-status" id="stRecords"></span></span>
+      <span class="menu-arrow">›</span>
+    </button>
+    <button type="button" class="menu menu-light" data-go="howto">
+      <span class="menu-icon" data-icon="help"></span>
+      <span class="menu-text"><span class="menu-title">使い方</span><span class="menu-status">はじめての方へ</span></span>
+      <span class="menu-arrow">›</span>
     </button>
     <button type="button" class="sub" id="homeRestore">機種変更などで、バックアップから戻す</button>
   </section>
 
-  <!-- ===== 画面1：初期設定 ===== -->
-  <section id="setup">
+  <!-- ===== 設定（生前の準備・亡くなった後で共通） ===== -->
+  <section id="setup" class="hidden">
     <!-- 画面上部に追従する選択状況 -->
     <div id="stickyBar" class="sticky-bar">
       <span class="sticky-total" id="stickyTotal">選択 0件</span>
       <span class="sticky-chips" id="stickyChips"></span>
     </div>
-    <div class="card">
+    <p class="lead" id="setupLead"></p>
+    <div class="card" id="dateCard">
       <strong>亡くなった日</strong>
       <input type="date" id="deathDate">
-      <p class="meta">枠をタップすると、カレンダーから日付を選べます。まだの場合は、空欄のままで進めます（後から入力できます）。</p>
+      <p class="meta">枠をタップすると、カレンダーから日付を選べます。分からない場合は空欄のままで進めます（後から入力できます）。</p>
     </div>
     <div class="card">
-      <strong>当てはまるものにチェックしてください</strong>
-      <p class="meta">項目を押すと質問が開きます。分からないものもチェックしてください。</p>
+      <strong>ご本人について、当てはまるものを選んでください</strong>
+      <p class="meta">項目を押すと質問が開きます。分からないものもチェックしてください。ここで答えた内容は、生前の準備と亡くなった後の手続きの両方で使われます。</p>
       <div id="questions"></div>
     </div>
-    <button id="startBtn">手続きリストを作る</button>
-    <button type="button" class="sub" id="setupHomeBtn">戻る</button>
+    <button id="startBtn">リストを作る</button>
   </section>
 
-  <!-- ===== 画面2：手続きリスト ===== -->
-  <section id="list" class="hidden">
-    <!-- 生前の準備・亡くなった後・記録帳の切り替え -->
-    <div class="tabs">
-      <button type="button" class="tab" data-tab="before">生前の準備</button>
-      <button type="button" class="tab" data-tab="after">亡くなった後</button>
-      <button type="button" class="tab" data-tab="records">記録帳</button>
-    </div>
+  <!-- ===== 生前の準備 ===== -->
+  <section id="before" class="hidden">
     <div class="card">
-      <div id="summary"></div>
-      <div class="progress"><div id="bar"></div></div>
+      <div id="sumBefore"></div>
+      <div class="progress"><div id="barBefore"></div></div>
     </div>
+    <div id="beforeGroups"></div>
+    <button class="sub" id="editBefore">設定をやり直す</button>
+  </section>
 
-    <div id="tabTasks">
-      <!-- 亡くなった日が未入力のときだけ表示する入力欄 -->
-      <div id="dateBanner" class="card date-banner hidden">
-        <strong>亡くなった日を入れると、期限の日付が表示されます</strong>
-        <input type="date" id="bannerDate">
-        <p class="meta">亡くなってすぐの場合は、14日以内の手続きがあります。先に日付を入れてください。</p>
-      </div>
-      <div id="groups"></div>
-      <button class="sub" id="editBtn">設定をやり直す</button>
-      <p class="meta" id="dueNote">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
+  <!-- ===== 亡くなった後の手続き ===== -->
+  <section id="after" class="hidden">
+    <div class="card">
+      <div id="sumAfter"></div>
+      <div class="progress"><div id="barAfter"></div></div>
     </div>
-
-    <!-- ===== 記録帳 ===== -->
-    <div id="tabRecords" class="hidden">
-      <div class="card">
-        <strong id="recFormTitle">見つかったものを書き留める</strong>
-        <p class="warn-box">口座番号・パスワード・暗証番号は書かないでください。</p>
-        <label class="field">種類
-          <select id="recType"></select>
-        </label>
-        <label class="field">名称
-          <input type="text" id="recName" placeholder="例：〇〇銀行 船橋支店">
-        </label>
-        <label class="field">メモ
-          <textarea id="recMemo" rows="3" placeholder="例：通帳は仏壇の引き出し。問い合わせ先は通帳の裏に記載"></textarea>
-        </label>
-        <button type="button" id="recSave">記録帳に追加する</button>
-        <button type="button" class="sub hidden" id="recCancel">編集をやめる</button>
-      </div>
-      <div id="recList"></div>
-      <div class="out-btns">
-        <button type="button" id="copyBtn">文章でコピー</button>
-        <button type="button" id="imageBtn">画像で保存・送る</button>
-      </div>
-      <button type="button" id="shareBtn" class="sub hidden">記録帳を送る（LINE・メール・メモ）</button>
-      <button type="button" class="sub" id="printBtn">記録帳を印刷する</button>
-      <p class="warn-box hidden" id="printHelp">ホーム画面から開いたアプリでは、iPhoneの仕組み上、印刷ができません。「画像で保存・送る」で写真に保存すると、写真アプリから印刷できます。</p>
-      <p class="meta">記録はこの端末の中だけに保存されます。家族と共有するときは「文章でコピー」か「画像で保存・送る」を使ってください。</p>
+    <!-- 亡くなった日が未入力のときだけ表示する入力欄 -->
+    <div id="dateBanner" class="card date-banner hidden">
+      <strong>亡くなった日を入れると、期限の日付が表示されます</strong>
+      <input type="date" id="bannerDate">
+      <p class="meta">亡くなってすぐの場合は、14日以内の手続きがあります。先に日付を入れてください。</p>
     </div>
+    <div id="afterGroups"></div>
+    <button class="sub" id="editAfter">設定をやり直す</button>
+    <p class="meta">期限は目安です。役所の期限が土日祝日にあたる場合は、翌開庁日になります。</p>
+  </section>
 
-    <!-- ===== バックアップ（全タブ共通） ===== -->
-    <div class="card backup">
-      <strong>データのバックアップ</strong>
-      <p class="meta" id="backupStatus"></p>
-      <div class="out-btns">
-        <button type="button" class="sub" id="backupSave">保存する</button>
-        <button type="button" class="sub" id="backupLoad">保存したものから戻す</button>
-      </div>
-      <p class="meta">入力した内容は、この端末の中にしかありません。機種変更やデータの削除に備えて、ときどき保存してください。保存したファイルには記録帳の内容が含まれるので、人に渡さないよう注意してください。</p>
+  <!-- ===== 記録帳 ===== -->
+  <section id="records" class="hidden">
+    <div class="card">
+      <div id="sumRecords"></div>
+      <div class="progress"><div id="barRecords"></div></div>
+    </div>
+    <div class="card" id="recForm">
+      <strong id="recFormTitle">見つかったものを書き留める</strong>
+      <p class="warn-box">口座番号・パスワード・暗証番号は書かないでください。</p>
+      <label class="field">種類
+        <select id="recType"></select>
+      </label>
+      <label class="field">名称
+        <input type="text" id="recName" placeholder="例：〇〇銀行 船橋支店">
+      </label>
+      <label class="field">メモ
+        <textarea id="recMemo" rows="3" placeholder="例：通帳は仏壇の引き出し。問い合わせ先は通帳の裏に記載"></textarea>
+      </label>
+      <button type="button" id="recSave">記録帳に追加する</button>
+      <button type="button" class="sub hidden" id="recCancel">編集をやめる</button>
+    </div>
+    <div id="recList"></div>
+    <div class="out-btns">
+      <button type="button" id="copyBtn">文章でコピー</button>
+      <button type="button" id="imageBtn">画像で保存・送る</button>
+    </div>
+    <button type="button" id="shareBtn" class="sub hidden">記録帳を送る（LINE・メール・メモ）</button>
+    <button type="button" class="sub" id="printBtn">記録帳を印刷する</button>
+    <p class="warn-box hidden" id="printHelp">ホーム画面から開いたアプリでは、iPhoneの仕組み上、印刷ができません。「画像で保存・送る」で写真に保存すると、写真アプリから印刷できます。</p>
+    <p class="meta">記録はこの端末の中だけに保存されます。家族と共有するときは「文章でコピー」か「画像で保存・送る」を使ってください。</p>
+  </section>
+
+  <!-- ===== 使い方 ===== -->
+  <section id="howto" class="hidden">
+    <div class="card howto">
+      <h2>このアプリでできること</h2>
+      <ol>
+        <li><strong>生前の準備</strong><br>ご家族が元気なうちや、入院・介護が始まったときに、確認しておくとよいことの一覧です。終わったものにチェックを付けていきます。</li>
+        <li><strong>亡くなった後の手続き</strong><br>いくつかの質問に答え、亡くなった日を入れると、必要な手続きが期限の近い順に並びます。各項目の「理由・注意点」を押すと、なぜ必要なのかが分かります。</li>
+        <li><strong>記録帳</strong><br>通帳や郵便物などで見つけた銀行・保険・契約を書き留めます。文章や画像にして、LINEで家族に送れます。</li>
+      </ol>
+      <h2>はじめに、ホーム画面に追加してください</h2>
+      <p><strong>iPhone：</strong>Safariでこのページを開き、下の共有ボタン（四角に上向きの矢印）から「ホーム画面に追加」を選びます。</p>
+      <p><strong>Android：</strong>Chromeでこのページを開き、右上の「︙」から「ホーム画面に追加」を選びます。</p>
+      <p class="meta">iPhoneでは、Safariで入力した内容と、ホーム画面のアイコンから開いたときの内容は別々に保存されます。ホーム画面に追加してから使い始めてください。</p>
+      <h2>入力した内容について</h2>
+      <p>入力した内容は、お使いのスマホの中だけに保存され、外部には送られません。機種変更やデータの削除に備えて、ときどき「データのバックアップ」から保存してください。</p>
     </div>
   </section>
+
+  <!-- ===== バックアップ（生前の準備・亡くなった後・記録帳で表示） ===== -->
+  <div class="card backup hidden" id="backupCard">
+    <strong>データのバックアップ</strong>
+    <p class="meta" id="backupStatus"></p>
+    <div class="out-btns">
+      <button type="button" class="sub" id="backupSave">保存する</button>
+      <button type="button" class="sub" id="backupLoad">保存したものから戻す</button>
+    </div>
+    <p class="meta">入力した内容は、この端末の中にしかありません。機種変更やデータの削除に備えて、ときどき保存してください。保存したファイルには記録帳の内容が含まれるので、人に渡さないよう注意してください。</p>
+  </div>
 
   <!-- ===== ご利用にあたって（全画面共通） ===== -->
   <footer class="site-foot">
@@ -291,6 +361,10 @@ const ICONS = {
   yen:    '<path d="M6 3l6 8 6-8"/><path d="M12 11v10"/><path d="M7 13h10"/><path d="M7 17h10"/>',
   house:  '<path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/>',
   phone:  '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  sprout: '<path d="M12 21v-9"/><path d="M12 12c0-4 3-7 8-7 0 4-3 7-8 7z"/><path d="M12 14c0-3-2-6-7-6 0 3 2 6 7 6z"/>',
+  list:   '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/>',
+  book:   '<path d="M4 4h7a3 3 0 0 1 3 3v14a2 2 0 0 0-2-2H4z"/><path d="M20 4h-4a3 3 0 0 0-2 1"/><path d="M20 4v15h-6"/>',
+  help:   '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/>',
 };
 function icon(name) {
   return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -299,42 +373,42 @@ function icon(name) {
 // ===== 初期設定の質問（key は手続きデータの cond と対応、cat はカテゴリ） =====
 const QUESTIONS = [
   // 暮らし・仕事
-  { cat: "life",    key: "company",     text: "会社員・公務員として在職中だった" },
-  { cat: "life",    key: "kokuho",      text: "国民健康保険、または75歳以上の医療保険だった" },
-  { cat: "life",    key: "over65",      text: "65歳以上だった" },
-  { cat: "life",    key: "pension",     text: "年金を受け取っていた" },
-  { cat: "life",    key: "dependents",  text: "故人の収入で生活していた家族がいる" },
-  { cat: "life",    key: "householder", text: "世帯主で、残る家族が2人以上いる" },
-  { cat: "life",    key: "license",     text: "運転免許証・パスポートを持っていた" },
+  { cat: "life",    key: "company",     text: "会社員・公務員として働いている（いた）" },
+  { cat: "life",    key: "kokuho",      text: "国民健康保険、または75歳以上の医療保険に入っている（いた）" },
+  { cat: "life",    key: "over65",      text: "65歳以上" },
+  { cat: "life",    key: "pension",     text: "年金を受け取っている（いた）" },
+  { cat: "life",    key: "dependents",  text: "本人の収入で生活している家族がいる" },
+  { cat: "life",    key: "householder", text: "世帯主で、ほかに同じ世帯の家族が2人以上いる" },
+  { cat: "life",    key: "license",     text: "運転免許証・パスポートを持っている（いた）" },
   // お金・相続
   { cat: "money",   key: "will",        text: "自筆の遺言書がある" },
   { cat: "money",   key: "heirs",       text: "相続人が2人以上いる" },
   { cat: "money",   key: "debt",        text: "借金や保証人の可能性がある" },
   { cat: "money",   key: "tax",         text: "遺産が多い可能性がある（相続税がかかりそう）" },
-  { cat: "money",   key: "income",      text: "確定申告をしていた（自営業・不動産収入など）" },
-  { cat: "money",   key: "medical",     text: "亡くなる前に高額な医療費がかかった" },
-  { cat: "money",   key: "life",        text: "生命保険に入っていた" },
-  { cat: "money",   key: "securities",  text: "証券口座を持っていた" },
-  { cat: "money",   key: "card",        text: "クレジットカードを持っていた" },
-  { cat: "money",   key: "safe",        text: "銀行の貸金庫を使っていた" },
-  { cat: "money",   key: "crypto",      text: "暗号資産（仮想通貨）を持っていた可能性がある" },
+  { cat: "money",   key: "income",      text: "確定申告をしている（いた）（自営業・不動産収入など）" },
+  { cat: "money",   key: "medical",     text: "高額な医療費がかかっている（いた）" },
+  { cat: "money",   key: "life",        text: "生命保険に入っている（いた）" },
+  { cat: "money",   key: "securities",  text: "証券口座を持っている（いた）" },
+  { cat: "money",   key: "card",        text: "クレジットカードを持っている（いた）" },
+  { cat: "money",   key: "safe",        text: "銀行の貸金庫を使っている（いた）" },
+  { cat: "money",   key: "crypto",      text: "暗号資産（仮想通貨）を持っている可能性がある" },
   // 住まい・持ち物
-  { cat: "home",    key: "realestate",  text: "不動産を持っていた" },
-  { cat: "home",    key: "rent",        text: "賃貸住宅に一人で住んでいた" },
-  { cat: "home",    key: "utility",     text: "故人名義の公共料金・NHKの契約がある" },
-  { cat: "home",    key: "car",         text: "故人名義の車がある" },
+  { cat: "home",    key: "realestate",  text: "不動産を持っている（いた）" },
+  { cat: "home",    key: "rent",        text: "賃貸住宅に一人で住んでいる（いた）" },
+  { cat: "home",    key: "utility",     text: "本人名義の公共料金・NHKの契約がある" },
+  { cat: "home",    key: "car",         text: "本人名義の車がある" },
   // スマホ・ネット
-  { cat: "digital", key: "phone", type: "select", text: "使っていた携帯電話", options: [
+  { cat: "digital", key: "phone", type: "select", text: "使っている（いた）携帯電話", options: [
       { value: "iphone",  label: "iPhone" },
       { value: "android", label: "Android" },
       { value: "feature", label: "ガラケー（スマホ以外）" },
       { value: "none",    label: "使っていない・分からない" },
   ] },
-  { cat: "digital", key: "mail",        text: "メールを使っていた（Gmail・Yahoo!メール・携帯会社のメールなど）" },
-  { cat: "digital", key: "line",        text: "LINEを使っていた" },
-  { cat: "digital", key: "sns",         text: "SNS（Facebook・Instagram・Xなど）を使っていた" },
+  { cat: "digital", key: "mail",        text: "メールを使っている（いた）（Gmail・Yahoo!メール・携帯会社のメールなど）" },
+  { cat: "digital", key: "line",        text: "LINEを使っている（いた）" },
+  { cat: "digital", key: "sns",         text: "SNS（Facebook・Instagram・Xなど）を使っている（いた）" },
   { cat: "digital", key: "data",        text: "残したい写真やデータがある" },
-  { cat: "digital", key: "web",         text: "ブログ・ドメイン・有料クラウドを契約していた" },
+  { cat: "digital", key: "web",         text: "ブログ・ドメイン・有料クラウドを契約している（いた）" },
 ];
 
 // ===== 手続きデータ（元データ：手続きリスト 叩き台） =====
@@ -401,7 +475,7 @@ const BEFORE_GROUPS = [
   { id: "terminal", title: "入院・余命宣告を受けたら" },
 ];
 const BEFORE_ITEMS = [
-  { id:"b1",  timing:"well",     name:"スマホのロック解除方法の確認", place:"本人", reason:"亡くなった後は解除できず、中の情報の手がかりが失われる" },
+  { id:"b1",  timing:"well",     hideIf:["phone:feature", "phone:none"], name:"スマホのロック解除方法の確認", place:"本人", reason:"亡くなった後は解除できず、中の情報の手がかりが失われる" },
   { id:"b2",  timing:"well",     name:"取引のある金融機関・証券会社・保険の把握", place:"本人", reason:"通帳のないネット口座は、家族が存在に気づけない" },
   { id:"b3",  timing:"well",     name:"契約中のサブスク・ネットサービスの把握", place:"本人", reason:"亡くなった後も課金が続き、解約先も分からなくなる" },
   { id:"b4",  timing:"well",     name:"遺言書の有無と保管場所", place:"本人", reason:"見つからないまま遺産を分けると、やり直しになる" },
@@ -424,8 +498,8 @@ function save(state) {
 }
 let state = load() || { deathDate: "", answers: {}, done: {} };
 if (!state.records) state.records = [];   // 前の版で保存したデータにも記録帳を用意する
-if (state.deathDate) state.setupDone = true;            // 前の版で日付を入れた人は設定済み扱い
-if (!state.tab && state.deathDate) state.tab = "after";   // 前の版で使っていた人は「亡くなった後」から再開
+if (state.deathDate) state.setupDone = true;   // 前の版で日付を入れた人は設定済み扱い
+if (state.started) state.setupBefore = true;   // 前の版で生前の準備を開いていた人も設定済み扱い
 
 // ===== 日付の計算 =====
 function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
@@ -473,8 +547,16 @@ function questionHTML(q) {
     </label>`;
 }
 
+let setupMode = "after";   // 設定画面をどちらの用途で開いているか（before / after）
+
 function renderSetup() {
-  document.getElementById("deathDate").value = state.deathDate;
+  const after = setupMode === "after";
+  document.getElementById("dateCard").classList.toggle("hidden", !after);
+  document.getElementById("setupLead").textContent = after
+    ? "いくつかの質問に答えると、必要な手続きを期限の近い順に表示します。"
+    : "分かる範囲で答えてください。すべて飛ばして、そのまま進むこともできます。";
+  document.getElementById("startBtn").textContent = after ? "手続きリストを作る" : "準備リストを作る";
+  document.getElementById("deathDate").value = state.deathDate || "";
   // カテゴリごとに折りたためる箱を作る
   document.getElementById("questions").innerHTML = CATEGORIES.map(c => `
     <details class="cat" data-cat="${c.id}">
@@ -569,27 +651,33 @@ function renderList() {
   const group = (title, list) => list.length
     ? `<h2>${title}</h2>` + list.map(itemHTML).join("") : "";
 
-  document.getElementById("groups").innerHTML =
+  document.getElementById("afterGroups").innerHTML =
     group("早めにやること", asap) +
     group("期限があるもの（近い順）", dated) +
     group("時期を見て行うもの", later);
 
   // 進み具合
   const doneCount = items.filter(i => state.done[i.id]).length;
-  document.getElementById("summary").innerHTML =
+  document.getElementById("sumAfter").innerHTML =
     `亡くなった日：${state.deathDate ? fmt(new Date(state.deathDate + "T00:00:00")) : "未入力"}<br>完了 ${doneCount} / ${items.length} 件`;
   document.getElementById("dateBanner").classList.toggle("hidden", !!state.deathDate);
-  document.getElementById("bar").style.width = `${items.length ? doneCount / items.length * 100 : 0}%`;
+  document.getElementById("barAfter").style.width = `${items.length ? doneCount / items.length * 100 : 0}%`;
 }
 
 // ===== 事前の準備リストを表示 =====
+// 生前の準備で表示する項目（スマホを使っていない人にはスマホの項目を出さない）
+function beforeItems() {
+  return BEFORE_ITEMS.filter(i => !(i.hideIf && i.hideIf.some(c => matches(c))));
+}
+
 function renderBefore() {
-  document.getElementById("groups").innerHTML = BEFORE_GROUPS.map(g =>
-    `<h2>${g.title}</h2>` + BEFORE_ITEMS.filter(i => i.timing === g.id).map(itemHTML).join("")
+  const items = beforeItems();
+  document.getElementById("beforeGroups").innerHTML = BEFORE_GROUPS.map(g =>
+    `<h2>${g.title}</h2>` + items.filter(i => i.timing === g.id).map(itemHTML).join("")
   ).join("") + `<p class="meta">口座の凍結に備えて、生前に預金をまとめて引き出すことは、相続で揉める原因になるためおすすめしません。亡くなった後も、遺産分割の前に一定額まで払い戻しを受けられる制度があります。</p>`;
-  const doneCount = BEFORE_ITEMS.filter(i => state.done[i.id]).length;
-  document.getElementById("summary").innerHTML = `もしもに備える準備<br>完了 ${doneCount} / ${BEFORE_ITEMS.length} 件`;
-  document.getElementById("bar").style.width = `${doneCount / BEFORE_ITEMS.length * 100}%`;
+  const doneCount = items.filter(i => state.done[i.id]).length;
+  document.getElementById("sumBefore").innerHTML = `もしもに備える準備<br>完了 ${doneCount} / ${items.length} 件`;
+  document.getElementById("barBefore").style.width = `${doneCount / items.length * 100}%`;
 }
 
 // ===== 記録帳 =====
@@ -604,11 +692,9 @@ function esc(t) {
 
 function renderRecords() {
   const list = state.records;
-  if (state.tab === "records") {
-    const n = list.length, done = list.filter(r => r.status === "完了").length;
-    document.getElementById("summary").innerHTML = `記録帳<br>記録 ${n} 件（完了 ${done} 件）`;
-    document.getElementById("bar").style.width = `${n ? done / n * 100 : 0}%`;
-  }
+  const n = list.length, done = list.filter(r => r.status === "完了").length;
+  document.getElementById("sumRecords").innerHTML = `記録帳<br>記録 ${n} 件（完了 ${done} 件）`;
+  document.getElementById("barRecords").style.width = `${n ? done / n * 100 : 0}%`;
   document.getElementById("recList").innerHTML = list.length === 0
     ? `<div class="card rec-empty">まだ記録はありません。<br>通帳・郵便物・スマホなどで見つけたものを書き留めていきましょう。</div>`
     : RECORD_TYPES.flatMap(type => list.filter(r => r.type === type)).map(r => `
@@ -652,66 +738,87 @@ function buildPrint() {
     <p class="foot">家族の整理用のメモです。口座番号・パスワードは記載していません。期限や手続きの判断は、役所や専門家にご確認ください。</p>`;
 }
 
-// タブの切り替え（before=生前の準備 / after=亡くなった後 / records=記録帳）
-function switchTab(tab) {
-  // 亡くなった日がまだなければ、先に設定画面へ
-  if (tab === "after" && !state.setupDone) { show("setup"); return; }
-  state.tab = tab;
-  state.started = true;
-  save(state);
-  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
-  document.getElementById("tabTasks").classList.toggle("hidden", tab === "records");
-  document.getElementById("tabRecords").classList.toggle("hidden", tab !== "records");
-  document.getElementById("editBtn").classList.toggle("hidden", tab !== "after");
-  document.getElementById("dueNote").classList.toggle("hidden", tab !== "after");
-  if (tab !== "after") document.getElementById("dateBanner").classList.add("hidden");
-  if (tab === "before") renderBefore();
-  else if (tab === "after") renderList();
-  else {
-    renderRecords();
-    const n = state.records.length, done = state.records.filter(r => r.status === "完了").length;
-    document.getElementById("summary").innerHTML = `記録帳<br>記録 ${n} 件（完了 ${done} 件）`;
-    document.getElementById("bar").style.width = `${n ? done / n * 100 : 0}%`;
+// ===== タイトル画面の状況表示 =====
+function renderTitle() {
+  // 生前の準備
+  const bItems = beforeItems(), bDone = bItems.filter(i => state.done[i.id]).length;
+  document.getElementById("stBefore").textContent = state.setupBefore ? `完了 ${bDone} / ${bItems.length} 件` : "元気なうちに確認しておくこと";
+  // 亡くなった後：次に期限が来る未完了の手続きを表示する
+  let after = "亡くなった日から、手続きを期限順に表示";
+  if (state.setupDone) {
+    const items = ITEMS.filter(i => matches(i.cond));
+    const aDone = items.filter(i => state.done[i.id]).length;
+    after = `完了 ${aDone} / ${items.length} 件`;
+    if (!state.deathDate) after += "・亡くなった日が未入力です";
+    else {
+      const next = items.filter(i => !state.done[i.id] && dueDate(i)).sort((x, y) => dueDate(x) - dueDate(y))[0];
+      if (next) {
+        const left = daysLeft(dueDate(next));
+        const cls = left < 0 ? "due-warn" : left <= 7 ? "due-soon" : "";
+        after = `<span class="${cls}">次の期限：${fmt(dueDate(next))}（${next.name.replace(/（.*?）/g, "")}）</span>`;
+      }
+    }
   }
+  document.getElementById("stAfter").innerHTML = after;
+  // 記録帳
+  document.getElementById("stRecords").textContent = state.records.length ? `記録 ${state.records.length} 件` : "見つけた口座や契約を書き留める";
 }
 
+// ===== 画面の切り替え =====
+const SCREENS = ["title", "setup", "before", "after", "records", "howto"];
+const SCREEN_TITLES = { before: "生前の準備", after: "亡くなった後の手続き", records: "記録帳", howto: "使い方" };
+let current = "title";
+
 function show(screen) {
-  document.getElementById("home").classList.toggle("hidden", screen !== "home");
-  document.getElementById("setup").classList.toggle("hidden", screen !== "setup");
-  document.getElementById("list").classList.toggle("hidden", screen !== "list");
-  if (screen === "list") { switchTab(state.tab || "before"); renderBackupStatus(); }
+  // 設定がまだなら、先に設定画面へ
+  if (screen === "before" && !state.setupBefore) { setupMode = "before"; screen = "setup"; }
+  if (screen === "after" && !state.setupDone) { setupMode = "after"; screen = "setup"; }
+  current = screen;
+  SCREENS.forEach(id => document.getElementById(id).classList.toggle("hidden", id !== screen));
+  document.getElementById("topbar").classList.toggle("hidden", screen === "title");
+  document.getElementById("screenTitle").textContent =
+    screen === "setup" ? (setupMode === "after" ? "亡くなった後の設定" : "生前の準備の設定") : (SCREEN_TITLES[screen] || "");
+  const withBackup = ["before", "after", "records"].includes(screen);
+  document.getElementById("backupCard").classList.toggle("hidden", !withBackup);
+  if (withBackup) renderBackupStatus();
+  if (screen === "title") renderTitle();
   else if (screen === "setup") renderSetup();
+  else if (screen === "before") renderBefore();
+  else if (screen === "after") renderList();
+  else if (screen === "records") renderRecords();
   window.scrollTo(0, 0);
 }
 
 // ===== ボタンやチェックの操作 =====
 document.getElementById("startBtn").addEventListener("click", () => {
   const date = document.getElementById("deathDate").value;
-  state.deathDate = date;   // 空欄でも進める
-  state.setupDone = true;
-  state.tab = "after";
   state.answers = {};
   document.querySelectorAll("#questions input[type=checkbox]").forEach(cb => { state.answers[cb.dataset.key] = cb.checked; });
   document.querySelectorAll("#questions input[type=radio]:checked").forEach(r => { state.answers[r.name] = r.value; });
+  if (setupMode === "after") {
+    state.deathDate = date;   // 空欄でも進める
+    state.setupDone = true;
+  } else {
+    state.setupBefore = true;
+  }
   save(state);
-  show("list");
+  show(setupMode);
 });
 
-document.getElementById("editBtn").addEventListener("click", () => show("setup"));
+// 設定をやり直す
+document.getElementById("editBefore").addEventListener("click", () => { setupMode = "before"; show("setup"); });
+document.getElementById("editAfter").addEventListener("click", () => { setupMode = "after"; show("setup"); });
 
-// 入口の選択
-document.getElementById("home").addEventListener("click", e => {
-  const btn = e.target.closest(".entry");
-  if (!btn) return;
-  state.tab = btn.dataset.mode;
-  save(state);
-  show("list");   // 「亡くなった後」で日付がなければ、自動で設定画面になる
+// タイトル画面のメニュー
+document.getElementById("title").addEventListener("click", e => {
+  const btn = e.target.closest(".menu");
+  if (btn) show(btn.dataset.go);
 });
-// 設定画面の「戻る」：まだリストを使っていなければ入口へ、使っていれば生前の準備へ
-document.getElementById("setupHomeBtn").addEventListener("click", () => {
-  if (state.setupDone) { show("list"); return; }
-  if (state.started) { state.tab = "before"; show("list"); } else show("home");
-});
+// 上部の「メニュー」ボタン
+document.getElementById("backBtn").addEventListener("click", () => show("title"));
+
+// メニューのアイコンを描く
+document.querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icon(el.dataset.icon); });
 
 document.getElementById("questions").addEventListener("change", updateCounts);
 
@@ -720,15 +827,12 @@ document.getElementById("bannerDate").addEventListener("change", e => {
   if (!e.target.value) return;
   state.deathDate = e.target.value;
   save(state);
-  switchTab("after");
+  renderList();
 });
 
 // ----- 記録帳の操作 -----
 document.getElementById("recType").innerHTML = RECORD_TYPES.map(t => `<option>${t}</option>`).join("");
 
-document.querySelector(".tabs").addEventListener("click", e => {
-  if (e.target.dataset.tab) switchTab(e.target.dataset.tab);
-});
 
 document.getElementById("recSave").addEventListener("click", () => {
   const name = document.getElementById("recName").value.trim();
@@ -761,7 +865,7 @@ document.getElementById("recList").addEventListener("click", e => {
     document.getElementById("recFormTitle").textContent = "記録を編集する";
     document.getElementById("recSave").textContent = "変更を保存する";
     document.getElementById("recCancel").classList.remove("hidden");
-    window.scrollTo({ top: document.getElementById("tabRecords").offsetTop - 8, behavior: "smooth" });
+    window.scrollTo({ top: document.getElementById("recForm").offsetTop - 70, behavior: "smooth" });
   }
   if (delId && confirm("この記録を削除しますか？")) {
     state.records = state.records.filter(r => r.id !== delId);
@@ -960,7 +1064,7 @@ document.getElementById("backupFile").addEventListener("change", e => {
     if (!state.answers) state.answers = {};
     save(state);
     alert("バックアップから戻しました。");
-    show(state.tab ? "list" : "home");
+    show("title");
   };
   reader.readAsText(f);
 });
@@ -974,12 +1078,13 @@ document.getElementById("shareBtn").addEventListener("click", () => {
 });
 window.addEventListener("beforeprint", buildPrint);   // ブラウザのメニューから印刷した場合にも対応
 
-document.getElementById("groups").addEventListener("change", e => {
+// チェックを付けたら保存して表示を更新
+["beforeGroups", "afterGroups"].forEach(id => document.getElementById(id).addEventListener("change", e => {
   if (!e.target.dataset.id) return;
   state.done[e.target.dataset.id] = e.target.checked;
   save(state);
-  switchTab(state.tab);
-});
+  if (current === "before") renderBefore(); else renderList();
+}));
 
 // ===== アプリ化：電波がなくても開けるようにする =====
 if ("serviceWorker" in navigator) {
@@ -987,8 +1092,7 @@ if ("serviceWorker" in navigator) {
 }
 
 // ===== 起動時：入口 → 設定 → リストの順に、続きの画面から表示 =====
-if (!state.tab) show("home");   // 初回だけ入口を表示
-else show("list");
+show("title");   // いつもタイトル画面から始める
 </script>
 </body>
 </html>
